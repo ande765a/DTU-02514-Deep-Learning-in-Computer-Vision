@@ -6,7 +6,7 @@ import PIL.Image as Image
 import gdown
 
 class Hotdog_NotHotdog(torch.utils.data.Dataset):
-    def __init__(self, train, transform, data_path='hotdog_nothotdog'):
+    def __init__(self, train, transform, data_path='hotdog_nothotdog/hotdog_nothotdog'):
         'Initialization'
         self.transform = transform
         data_path = os.path.join(data_path, 'train' if train else 'test')

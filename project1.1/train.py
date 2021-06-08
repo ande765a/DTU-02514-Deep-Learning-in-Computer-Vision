@@ -1,10 +1,11 @@
 import numpy as np
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 import wandb
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 import matplotlib.pyplot as plt  
 
@@ -14,7 +15,7 @@ def checkpoint(model):
 
 
 #We define the training as a function so we can easily re-use it.
-def train(model, optimizer, trainset, testset, num_epochs=10, save_weights=False):
+def train(model, optimizer, trainset, testset, num_epochs=10, batch_size=64, save_weights=False):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)

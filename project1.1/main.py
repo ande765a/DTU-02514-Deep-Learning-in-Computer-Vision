@@ -15,7 +15,6 @@ from models import BaselineCNN, BaselineCNN_w_dropout, ResNet
 from dataloader import Hotdog_NotHotdog
 
 
-
 def main():
 
     model_options = {
@@ -24,15 +23,16 @@ def main():
         "ResNet": ResNet,
     }
 
-    optimixer_options = {
+    optimizer_options = {
         "SGD": torch.optim.SGD,
         "Adam": torch.optim.Adam
     }
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="What kind of model to use", type=str, choices=model_options.keys(), default="BaselineCNN")
-    parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimixer_options.keys(), default="SGD")
+    parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="SGD")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
+    parser.add_argument("--epochs", help="Number of epochs", type=float, default=10)
 
     args = parser.parse_args()
 
@@ -63,7 +63,7 @@ def main():
     testset = Hotdog_NotHotdog(train=False, transform=test_transform)
 
     lr = args.lr
-    epochs = 10
+    epochs = args.epochs
 
     # WANDB 1. Start a new run
     wandb.init(project='hotdog', entity='dlincv')
@@ -81,11 +81,19 @@ def main():
 
 
     #Initialize the optimizer
-    optimizer = optimizer_options[args.optimizer](lr=lr)
+    optimizer = optimizer_options[args.optimizer](model.parameters(), lr=lr)
 
 
 
-    train(model, optimizer, num_epochs, save_weights=False)
+    train(
+        model=model,
+        optimizer=optimizer,
+        trainset=trainset,
+        testset=testset,
+        num_epochs=epochs,
+        batch_size=batch_size,
+        save_weights=False
+    )
 
 
 if __name__ == "__main__":
