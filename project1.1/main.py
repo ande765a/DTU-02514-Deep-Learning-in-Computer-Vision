@@ -51,7 +51,6 @@ def main():
                     print("Extracted", 'hotdog_nothotdog.zip')
             except:
                 print("Invalid file")
-    return
 
     size = 128
     train_transform = transforms.Compose([transforms.Resize((size, size)), 
@@ -61,9 +60,7 @@ def main():
 
     batch_size = 64
     trainset = Hotdog_NotHotdog(train=True, transform=train_transform)
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testset = Hotdog_NotHotdog(train=False, transform=test_transform)
-    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     lr = args.lr
     epochs = 10
@@ -82,15 +79,13 @@ def main():
     model.to(device)
     wandb.watch(model)
 
-    # Loss function
-    criterion = nn.BCELoss()
 
     #Initialize the optimizer
     optimizer = optimizer_options[args.optimizer](lr=lr)
 
 
 
-    train(model, optimizer, criterion, num_epochs, save_weights=False)
+    train(model, optimizer, num_epochs, save_weights=False)
 
 
 if __name__ == "__main__":

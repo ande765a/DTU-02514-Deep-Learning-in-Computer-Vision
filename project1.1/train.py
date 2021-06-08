@@ -5,9 +5,7 @@ import wandb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
+
 import matplotlib.pyplot as plt  
 
 def checkpoint(model):
@@ -16,7 +14,12 @@ def checkpoint(model):
 
 
 #We define the training as a function so we can easily re-use it.
-def train(model, optimizer, num_epochs=10, save_weights=False):
+def train(model, optimizer, trainset, testset, num_epochs=10, save_weights=False):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    # Loss function
+    criterion = nn.BCELoss()
     def loss_fun(output, target):
         return criterion(output.to(torch.float), target.to(torch.float))
     out_dict = {'train_acc': [],
