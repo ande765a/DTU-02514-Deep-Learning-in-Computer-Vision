@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--model", help="What kind of model to use", type=str, choices=model_options.keys(), default="BaselineCNN")
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="SGD")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
-    parser.add_argument("--epochs", help="Number of epochs", type=float, default=10)
+    parser.add_argument("--epochs", help="Number of epochs", type=int, default=10)
 
     args = parser.parse_args()
 
