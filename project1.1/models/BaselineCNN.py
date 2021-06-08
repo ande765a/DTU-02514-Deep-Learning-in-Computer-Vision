@@ -60,7 +60,7 @@ class BaselineCNN(nn.Module):
 
 class BaselineCNN_w_dropout(nn.Module):
     def __init__(self):
-        super(BaselineCNN, self).__init__()
+        super(BaselineCNN_w_dropout, self).__init__()
         self.convolutional = nn.Sequential(
             nn.Conv2d(3, 32, 7, padding=3, stride=2),
             nn.BatchNorm2d(32),

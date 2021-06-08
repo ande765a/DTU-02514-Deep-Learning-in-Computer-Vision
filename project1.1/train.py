@@ -1,7 +1,8 @@
 import numpy as np
 from tqdm import tqdm
 import wandb
-
+import sys
+from medcam import medcam
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,7 +16,7 @@ def checkpoint(model):
 
 
 #We define the training as a function so we can easily re-use it.
-def train(model, optimizer, trainset, testset, num_epochs=10, batch_size=64, save_weights=False):
+def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size=64, save_weights=False, patience=10):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
@@ -26,8 +27,10 @@ def train(model, optimizer, trainset, testset, num_epochs=10, batch_size=64, sav
     out_dict = {'train_acc': [],
               'test_acc': [],
               'train_loss': [],
-              'test_loss': []}
-    test_loss = 0  
+              'test_loss': []}  
+    finish_epoch = num_epochs
+    atl_test_loss = sys.maxsize
+    countdown = patience
     for epoch in tqdm(range(num_epochs), unit='epoch'):
         model.train()
         #For each epoch
@@ -76,7 +79,32 @@ def train(model, optimizer, trainset, testset, num_epochs=10, batch_size=64, sav
         wandb.log({"train_loss": out_dict['train_loss'][-1]})
         wandb.log({"test_loss": out_dict['test_loss'][-1]})
         
-        if save_weights and test_loss > out_dict['test_loss'][-1]:
+        wandb.log({"train_acc": out_dict['train_acc'][-1], "test_acc": out_dict['test_acc'][-1]})
+        wandb.log({"train_loss": out_dict['train_loss'][-1], "test_loss": out_dict['test_loss'][-1]})
+
+        current_test_loss = out_dict['test_loss'][-1]
+        
+        if atl_test_loss > current_test_loss:
+            atl_test_loss = current_test_loss
+            countdown = patience
+        else:
+            countdown -= 1
+            if countdown == 0:
+                finish_epoch = epoch
+                print(f'Stopping at epoch {epoch} because test loss haven\'t improved in the last {patience} epochs')
+                break
+
+        if save_weights and atl_test_loss > current_test_loss:
             checkpoint(model)
+            
+    config.epochs_run = finish_epoch
+    
+    # ###PLOTTING###
+    # model_ = medcam.inject(model, output_dir="attention_maps", save_maps=True)
+    # model_.eval()
+
+    # for batch in next(iter(test_loader)):
+    #     output = model_(batch.to(device))
+    #     print(output)
 
     return out_dict

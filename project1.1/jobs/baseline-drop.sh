@@ -17,4 +17,4 @@ module load cuda/11.1.1
 
 PATH=~/miniconda3/bin:$PATH
 
-python main.py --model ResNet --optimizer Adam --lr 0.001 --epochs 1 --augmentation True
+python main.py --model BaselineCNN_w_dropout --optimizer Adam --lr 0.001 --epochs 100

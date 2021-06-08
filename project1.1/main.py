@@ -7,6 +7,7 @@ from train import train
 import argparse
 import zipfile
 import gdown
+from medcam import medcam
 
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -33,6 +34,7 @@ def main():
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="SGD")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=10)
+    parser.add_argument("--augmentation", help="Augmentation on or off", type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -53,8 +55,19 @@ def main():
                 print("Invalid file")
 
     size = 128
-    train_transform = transforms.Compose([transforms.Resize((size, size)), 
-                                        transforms.ToTensor()])
+
+    transform = [transforms.Resize((size, size)), 
+                                        transforms.ToTensor()]
+
+    if args.augmentation:
+        transform.append(transforms.RandomRotation(20))
+        transform.append(transforms.RandomHorizontalFlip())
+        transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
+        
+
+
+    train_transform = transforms.Compose(transform)
+                                        
     test_transform = transforms.Compose([transforms.Resize((size, size)), 
                                         transforms.ToTensor()])
 
@@ -73,12 +86,15 @@ def main():
     config.learning_rate = lr
     config.batch_size = batch_size
     config.epochs = epochs
-
+    config.optimizer = optimizer_options[args.optimizer]
+    config.transforms = train_transform
+    
     # Init network
     model = model_options[args.model]()
     model.to(device)
     wandb.watch(model)
 
+    ## Weight decay?
 
     #Initialize the optimizer
     optimizer = optimizer_options[args.optimizer](model.parameters(), lr=lr)
@@ -92,9 +108,15 @@ def main():
         testset=testset,
         num_epochs=epochs,
         batch_size=batch_size,
-        save_weights=False
+        save_weights=False,
+        config=config
     )
 
+
+
+
+
+    
 
 if __name__ == "__main__":
     main()
