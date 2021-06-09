@@ -2,12 +2,12 @@ import numpy as np
 from tqdm import tqdm
 import wandb
 import sys
-from medcam import medcam
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-
+from plotimages import plotwrongimages
 import matplotlib.pyplot as plt  
 
 def checkpoint(model):
@@ -18,8 +18,8 @@ def checkpoint(model):
 #We define the training as a function so we can easily re-use it.
 def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size=64, save_weights=False, patience=10):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
+    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=8)
     # Loss function
     criterion = nn.BCELoss()
     def loss_fun(output, target):
@@ -98,7 +98,9 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
             checkpoint(model)
             
     config.epochs_run = finish_epoch
-    
+    filename = plotwrongimages(test_loader, model)
+    wandb.save(filename)
+
     # ###PLOTTING###
     # model_ = medcam.inject(model, output_dir="attention_maps", save_maps=True)
     # model_.eval()

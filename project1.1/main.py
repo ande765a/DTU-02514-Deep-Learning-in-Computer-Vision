@@ -8,7 +8,8 @@ from train import train
 import argparse
 import zipfile
 import gdown
-from medcam import medcam
+# from medcam import medcam
+
 
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -57,24 +58,25 @@ def main():
 
     size = 128
 
-    transform = [transforms.Resize((size, size)),
-                transforms.Normalize(mean=(0.5226, 0.4412, 0.3585),
-                                    std=(0.2253, 0.2294, 0.2339)),
-                transforms.ToTensor()]
+    transform = [transforms.Resize((size, size))]
 
     if args.augmentation:
         transform.append(transforms.RandomRotation(20))
         transform.append(transforms.RandomHorizontalFlip())
         transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
-        
 
+
+    transform.append(transforms.ToTensor())
+    transform.append(transforms.Normalize(mean=(0.5226, 0.4412, 0.3585), std=(0.2253, 0.2294, 0.2339)))
+                
 
     train_transform = transforms.Compose(transform)
                                         
     test_transform = transforms.Compose([transforms.Resize((size, size)),
+                                        transforms.ToTensor(),
                                         transforms.Normalize(mean=(0.5226, 0.4412, 0.3585),
-                                                            std=(0.2253, 0.2294, 0.2339)),
-                                        transforms.ToTensor()])
+                                                            std=(0.2253, 0.2294, 0.2339))
+                                        ])
 
     batch_size = 64
     trainset = Hotdog_NotHotdog(train=True, transform=train_transform)
@@ -121,7 +123,7 @@ def main():
 
 
 def analyze_data(trainset, batch_size):
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8)
 
     mean = 0.
     std = 0.
@@ -136,7 +138,7 @@ def analyze_data(trainset, batch_size):
     
     print(mean, std)
 
-    # filename = plotimages(train_loader)
+    # 
     
     # return filename
     

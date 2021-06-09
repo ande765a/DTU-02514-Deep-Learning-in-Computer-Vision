@@ -1,6 +1,6 @@
 #!/bin/sh
 #BSUB -q gpuv100
-#BSUB -J hotdog-adam
+#BSUB -J 01-baseline-sgd-no-aug
 #BSUB -n 8
 #BSUB -R "span[block=1]"
 #BSUB -gpu "num=1:mode=exclusive_process"
@@ -17,4 +17,4 @@ module load cuda/11.1.1
 
 PATH=~/miniconda3/bin:$PATH
 
-python main.py --model ResNet --optimizer Adam --lr 0.001 --epochs 100 --augmentation True
+python main.py --model BaselineCNN --optimizer SGD --lr 0.001 --epochs 100 --augmentation False
