@@ -98,9 +98,13 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
             checkpoint(model)
             
     config.epochs_run = finish_epoch
-    filename = plotwrongimages(test_loader, model)
-    wandb.save(filename)
-
+    filename1, filename2, FP, TP, FN, TN = plotwrongimages(test_loader, model)
+    wandb.save(filename1)
+    wandb.save(filename2)
+    config.FP = FP
+    config.TP = TP
+    config.FN = FN
+    config.TN = TN
     # ###PLOTTING###
     # model_ = medcam.inject(model, output_dir="attention_maps", save_maps=True)
     # model_.eval()

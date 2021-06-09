@@ -38,32 +38,67 @@ def plotwrongimages(test_loader, model):
     model.eval()
 
     plt.figure(figsize=(20,10))
-    wrong_images = []
+    f_neg_images = []
+    f_pos_images = []
+    f_pos = 0
+    t_pos = 0
+    t_neg = 0
+    f_neg = 0
     for images, labels in test_loader:
         for image, label in zip(images, labels):
-            if len(wrong_images) > 21:
-                break
+
             unnorm = UnNormalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025))
             
             image = image.view(1, *image.shape)
             pred = model(image.to(device)).detach().cpu().numpy().item()
             label.item()
+            
+            bin_pred = (pred > 0.5)
+           
 
-            if label.item() != (pred >0.5) and label.item() == 0:
-                wrong_images.append((unnorm(image).permute(0,2,3,1).detach().cpu().numpy()[0], label, pred))
 
-    print(len(wrong_images))
-    for i in range(len(wrong_images)):
+
+            if bin_pred == 1:
+                if label.item() == 0:
+                    f_neg += 1
+                    if len(f_neg_images) < 22:
+                        f_neg_images.append((unnorm(image).permute(0,2,3,1).detach().cpu().numpy()[0], label, pred))
+                else:
+                    t_neg += 1
+            else:
+                if label.item() == 1:
+                    f_pos += 1
+                    if len(f_pos_images) < 22:
+                        f_pos_images.append((unnorm(image).permute(0,2,3,1).detach().cpu().numpy()[0], label, pred))
+                else:
+                    t_pos += 1
+                    
+
+
+   # Plotting false postive
+    for i in range(len(f_pos_images)):
         plt.subplot(5,7,i+1)
-        image, label, pred = wrong_images[i]
+        image, label, pred = f_pos_images[i]
+        plt.imshow(image)
+        plt.title(f"Predicted: {pred:.2f}, True: {label}")
+        plt.axis('off')
+    plt.show()
+    
+    path_pos = 'figs/f_pos_pred.png'
+    plt.savefig(path_pos)
+    
+    #Plotting false negative
+    for i in range(len(f_neg_images)):
+        plt.subplot(5,7,i+1)
+        image, label, pred = f_neg_images[i]
         plt.imshow(image)
         plt.title(f"Predicted: {pred:.2f}, True: {label}")
         plt.axis('off')
     plt.show()
 
-    path = 'figs/wrongpred.png'
+    path_neg = 'figs/f_neg_pred.png'
     
-    plt.savefig(path)
-    return path
+    plt.savefig(path_neg)
+    return path_pos, path_neg, f_pos, t_pos, t_neg, f_neg
 
 
