@@ -132,3 +132,5 @@ hotdog_nothotdog.zip
 __MAXOSX
 wandb
 figs
+.vscode
+SVHN/
