@@ -134,3 +134,6 @@ wandb
 figs
 .vscode
 SVHN/
+data
+SVHN.zip
+

@@ -1,0 +1,52 @@
+import os, gdown, zipfile
+import numpy as np
+import matplotlib.pyplot as plt
+
+if __name__ == '__main__':
+    digit_shape = 32
+
+    if not os.path.exists(f'./SVHN'):
+            url = 'https://drive.google.com/uc?id=1RWNq8JP5SXi07NLc1bgqN39FrsmB3KA7'
+            gdown.download(url, './SVHN.zip', quiet=False)
+            try:
+                with zipfile.ZipFile('./SVHN.zip') as z:
+                    z.extractall('SVHN')
+                    print("Extracted", 'SVHN.zip')
+            except:
+                print('Invalid file')
+    
+    directory = 'SVHN/SVHN/train/'
+    background_dir = directory + 'background/'
+    if not os.path.exists(background_dir): 
+        os.mkdir(background_dir)
+
+    i = 0
+    for filename in os.listdir(directory):
+        if filename.endswith('.png'):
+            f = os.path.join(directory, filename)
+
+            if os.path.isfile(f):
+                f_name = filename[:-4] 
+                print(f_name)
+                bbox_path = directory + f_name + '.csv'
+                img = plt.imread(f)
+
+                bboxs = np.genfromtxt(bbox_path, delimiter=',',dtype=None)
+                _, left, _, width, _ = bboxs[1]
+                right = left+width
+                for j in range(1,len(bboxs)):
+                    # left most point
+                    if left > bboxs[j,1]:
+                        left = bboxs[j,1]
+
+                    if right < bboxs[j,1]+bboxs[j,3]:
+                        right = bboxs[j,1]+bboxs(j,3)
+                    for k in range(0, img.shape[0]-digit_shape-1, digit_shape):
+                        for l in range(0, img.shape[1]-digit_shape-1, digit_shape):
+                            if k > left and k < right:
+                                continue
+                            plt.imsave(background_dir + f_name +'_' + j + k + l + '.png')
+            i += 1
+            print(i)
+            if i == 5: break
+
