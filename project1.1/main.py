@@ -1,6 +1,7 @@
 import os
 import torch
 from torch.utils.data import DataLoader
+from torchvision.transforms.transforms import Normalize
 from dataloader import Hotdog_NotHotdog
 import wandb
 from train import train
@@ -56,8 +57,10 @@ def main():
 
     size = 128
 
-    transform = [transforms.Resize((size, size)), 
-                                        transforms.ToTensor()]
+    transform = [transforms.Resize((size, size)),
+                transforms.Normalize(mean=(0.5226, 0.4412, 0.3585),
+                                    std=(0.2253, 0.2294, 0.2339)),
+                transforms.ToTensor()]
 
     if args.augmentation:
         transform.append(transforms.RandomRotation(20))
@@ -68,7 +71,9 @@ def main():
 
     train_transform = transforms.Compose(transform)
                                         
-    test_transform = transforms.Compose([transforms.Resize((size, size)), 
+    test_transform = transforms.Compose([transforms.Resize((size, size)),
+                                        transforms.Normalize(mean=(0.5226, 0.4412, 0.3585),
+                                                            std=(0.2253, 0.2294, 0.2339)),
                                         transforms.ToTensor()])
 
     batch_size = 64
@@ -115,7 +120,25 @@ def main():
 
 
 
+def analyze_data(trainset, batch_size):
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
+    mean = 0.
+    std = 0.
+    for images, _ in train_loader:
+        batch_samples = images.size(0) # batch size (the last batch can have smaller size!)
+        images = images.view(batch_samples, images.size(1), -1)
+        mean += images.mean(2).sum(0)
+        std += images.std(2).sum(0)
+
+    mean /= len(train_loader.dataset)
+    std /= len(train_loader.dataset)  
+    
+    print(mean, std)
+
+    # filename = plotimages(train_loader)
+    
+    # return filename
     
 
 if __name__ == "__main__":
