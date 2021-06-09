@@ -60,7 +60,8 @@ def main():
 
 
     train_transform = transform
-                                        
+
+                              
     test_transform = [transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), transforms.ToTensor()]
 
     batch_size = 64
