@@ -98,7 +98,7 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
             checkpoint(model)
             
     config.epochs_run = finish_epoch
-    filename1, filename2, FP, TP, FN, TN = plotwrongimages(test_loader, model)
+    filename1, filename2, FP, TP, TN, FN = plotwrongimages(test_loader, model)
     wandb.save(filename1)
     wandb.save(filename2)
     config.FP = FP

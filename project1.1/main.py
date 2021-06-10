@@ -59,7 +59,9 @@ def main():
     size = 128
 
     transform = [transforms.Resize((size, size))]
+    print(args.augmentation)
 
+    
     if args.augmentation == 1:
         transform.append(transforms.RandomRotation(20))
         transform.append(transforms.RandomHorizontalFlip())

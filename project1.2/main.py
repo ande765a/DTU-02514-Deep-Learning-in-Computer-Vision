@@ -158,11 +158,13 @@ def main():
             output = model(images)
             
             argmax_output = output.argmax(dim=1)
-            print(argmax_output)
-            print()
+            # print(argmax_output)
             amax_output = output.amax(axis=1)
-            print(amax_output.shape)
-            print(amax_output*100)
+            # print(amax_output.shape)
+            # print(amax_output*100)
+
+            argmax_output[amax_output < 0.65] = 10
+            print(argmax_output)
             break
 
 
