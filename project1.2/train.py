@@ -37,6 +37,7 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
         train_correct = 0
         train_loss = []
         for minibatch_no, (data, target) in tqdm(enumerate(train_loader), total=len(train_loader)):
+            print(data, target)
             data, target = data.to(device), target.to(device)
             #Zero the gradients computed for each weight
             optimizer.zero_grad()

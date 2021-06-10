@@ -1,14 +1,12 @@
 import os
 import torch
 
-from dataloader import Hotdog_NotHotdog
+from dataloader import get_svhn
 import wandb
 from train import train
 import argparse
 import zipfile
 import gdown
-from medcam import medcam
-
 import torchvision.transforms as transforms
 
 from models import BaselineCNN, BaselineCNN_w_dropout
@@ -45,23 +43,30 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 
+###
+    transform = []
 
-    size = 128
-
-    transform = [transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), 
-                                        transforms.ToTensor()]
-
-    if args.augmentation:
+    if args.augmentation == 1:
         transform.append(transforms.RandomRotation(20))
         transform.append(transforms.RandomHorizontalFlip())
         transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
-        
+        print(args.augmentation)
 
 
-    train_transform = transform
+    transform.append(transforms.ToTensor())
+    transform.append(transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)))
+                
 
-                              
-    test_transform = [transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), transforms.ToTensor()]
+    train_transform = transforms.Compose(transform)
+                                        
+    test_transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025))
+                                        ])
+
+
+###
+
+
 
     batch_size = 64
     trainset = get_svhn(train=True, transform=train_transform)
@@ -100,8 +105,6 @@ def main():
 
     #Initialize the optimizer
     optimizer = optimizer_options[args.optimizer](model.parameters(), lr=lr)
-
-
 
     train(
         model=model,
