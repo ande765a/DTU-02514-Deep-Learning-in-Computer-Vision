@@ -34,9 +34,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="What kind of model to use", type=str, choices=model_options.keys(), default="BaselineCNN")
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="SGD")
-    parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
+    parser.add_argument("--lr", help="Learning rate", type=float, default=1e-1)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=10)
-    parser.add_argument("--augmentation", help="Augmentation on or off", type=bool, default=False)
+    parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default= 0)
 
     args = parser.parse_args()
 
@@ -60,10 +60,11 @@ def main():
 
     transform = [transforms.Resize((size, size))]
 
-    if args.augmentation:
+    if args.augmentation == 1:
         transform.append(transforms.RandomRotation(20))
         transform.append(transforms.RandomHorizontalFlip())
         transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
+        print(args.augmentation)
 
 
     transform.append(transforms.ToTensor())
