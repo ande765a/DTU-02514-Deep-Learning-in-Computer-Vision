@@ -1,28 +1,20 @@
-import os
-import torch
+#!/usr/bin/env python3
 
-from dataloader import Hotdog_NotHotdog
+import torch
 import wandb
-from train import train
 import argparse
-import zipfile
-import gdown
-from medcam import medcam
 
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
+from torchvision import datasets, transforms
 
+from train import train
 from models import BaselineCNN, BaselineCNN_w_dropout
-from dataloader import get_svhn
-from torchvision.datasets import SVHN
 from plotimage import plotimages
 
 def main():
-
     model_options = {
         "BaselineCNN": BaselineCNN,
         "BaselineCNN_w_dropout": BaselineCNN_w_dropout,
-        # "ResNet": ResNet,
     }
 
     optimizer_options = {
@@ -35,41 +27,57 @@ def main():
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="SGD")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=10)
+    parser.add_argument("--batch-size", help="Batch size", type=int, default=64)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=bool, default=False)
 
     args = parser.parse_args()
 
+    lr = args.lr
+    epochs = args.epochs
+    batch_size = args.batch_size
+    augmentation = args.augmentation
+
     if torch.cuda.is_available():
         print("The code will run on GPU.")
     else:
-        print("The code will run on CPU. Go to Edit->Notebook Settings and choose GPU as the hardware accelerator")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print("The code will run on CPU.")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    train_transforms = [
+        transforms.ToTensor(),
+        transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), 
+    ]
+
+    if augmentation:
+        train_transforms += [
+            transforms.RandomRotation(20),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(0.1, 0.1, 0.1, 0.1)
+        ]
+
+    train_transform = transforms.Compose(train_transforms)
+                             
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025))
+    ])
+
+
+    trainset = datasets.SVHN(
+        root="SVHN/train",
+        split="train",
+        transform=train_transform,
+        download=True
+    )
     
+    testset = trainset = datasets.SVHN(
+        root="SVHN/test",
+        split="test",
+        transform=test_transform,
+        download=True
+    )
 
-
-    size = 128
-
-    transform = [transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), 
-                                        transforms.ToTensor()]
-
-    if args.augmentation:
-        transform.append(transforms.RandomRotation(20))
-        transform.append(transforms.RandomHorizontalFlip())
-        transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
-        
-
-
-    train_transform = transform
-
-                              
-    test_transform = [transforms.Normalize((0.4381, 0.4442, 0.4732), (0.1170, 0.1200, 0.1025)), transforms.ToTensor()]
-
-    batch_size = 64
-    trainset = get_svhn(train=True, transform=train_transform)
-    testset = get_svhn(train=False, transform=test_transform)
-
-    lr = args.lr
-    epochs = args.epochs
 
     # WANDB 1. Start a new run
     wandb.init(project='numDetection', entity='dlincv')
@@ -82,7 +90,6 @@ def main():
     config.optimizer = optimizer_options[args.optimizer]
     config.transforms = train_transform
     
-    
     # Init network
     model = model_options[args.model]()
     model.to(device)
@@ -93,39 +100,15 @@ def main():
     optimizer = optimizer_options[args.optimizer](model.parameters(), lr=lr)
 
 
-
-    train(
+    return train(
         model=model,
         optimizer=optimizer,
         trainset=trainset,
         testset=testset,
         num_epochs=epochs,
         batch_size=batch_size,
-        save_weights=False,
         config=config
     )
-
-
-
-def analyze_data(trainset, batch_size):
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
-    mean = 0.
-    std = 0.
-    for images, _ in train_loader:
-        batch_samples = images.size(0) # batch size (the last batch can have smaller size!)
-        images = images.view(batch_samples, images.size(1), -1)
-        mean += images.mean(2).sum(0)
-        std += images.std(2).sum(0)
-
-    mean /= len(train_loader.dataset)
-    std /= len(train_loader.dataset)  
-    
-    # print(mean, std)
-
-    filename = plotimages(train_loader)
-    
-    return filename
     
 
 if __name__ == "__main__":
