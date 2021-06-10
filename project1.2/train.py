@@ -16,10 +16,10 @@ def checkpoint(model):
 
 
 #We define the training as a function so we can easily re-use it.
-def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size=64, save_weights=False, patience=10):
+def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size=64, save_weights=False, patience=10, num_workers=5):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     # Loss function
     criterion = nn.CrossEntropyLoss()
     def loss_fun(output, target):

@@ -9,13 +9,11 @@ import zipfile
 import gdown
 from medcam import medcam
 
-from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
 from models import BaselineCNN, BaselineCNN_w_dropout
 from dataloader import get_svhn
 from torchvision.datasets import SVHN
-from plotimage import plotimages
 
 def main():
 
@@ -36,6 +34,7 @@ def main():
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=10)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=bool, default=False)
+    parser.add_argument("--workers", help="Number of workers for dataloading", type=bool, default=8)
 
     args = parser.parse_args()
 
@@ -67,6 +66,16 @@ def main():
     batch_size = 64
     trainset = get_svhn(train=True, transform=train_transform)
     testset = get_svhn(train=False, transform=test_transform)
+
+    if not os.path.exists(f'./SVHN'):
+            url = 'https://drive.google.com/file/d/1RWNq8JP5SXi07NLc1bgqN39FrsmB3KA7/view?usp=sharing'
+            gdown.download(url, './SVHN.zip', quiet=False)
+            try:
+                with zipfile.ZipFile('./SVHN.zip') as z:
+                    z.extractall("SVHN")
+                    print("Extracted", 'SVHN.zip')
+            except:
+                print("Invalid file")
 
     lr = args.lr
     epochs = args.epochs
@@ -102,31 +111,12 @@ def main():
         num_epochs=epochs,
         batch_size=batch_size,
         save_weights=False,
-        config=config
+        config=config,
+        num_workers=args.workers
     )
 
 
 
-def analyze_data(trainset, batch_size):
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
-    mean = 0.
-    std = 0.
-    for images, _ in train_loader:
-        batch_samples = images.size(0) # batch size (the last batch can have smaller size!)
-        images = images.view(batch_samples, images.size(1), -1)
-        mean += images.mean(2).sum(0)
-        std += images.std(2).sum(0)
-
-    mean /= len(train_loader.dataset)
-    std /= len(train_loader.dataset)  
-    
-    # print(mean, std)
-
-    filename = plotimages(train_loader)
-    
-    return filename
-    
 
 if __name__ == "__main__":
     main()
