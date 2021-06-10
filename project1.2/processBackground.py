@@ -41,7 +41,6 @@ if __name__ == '__main__':
                         # left most point
                         if left > bboxs[j,1]:
                             left = bboxs[j,1]
-                        # right most point
                         if right < bboxs[j,1]+bboxs[j,3]:
                             right = bboxs[j,1]+bboxs[j,3]
                     left, right = int(left), int(right)

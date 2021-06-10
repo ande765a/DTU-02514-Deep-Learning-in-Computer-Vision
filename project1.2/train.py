@@ -10,7 +10,7 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-    criterion = nn.BCELoss()
+    criterion = nn.CrossEntropyLoss()
 
     train_acc = []
     test_acc = []
@@ -24,6 +24,7 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
         train_correct = 0
         model.train()
         for data, target in tqdm(train_loader):
+            print(data, target)
             optimizer.zero_grad()
 
 

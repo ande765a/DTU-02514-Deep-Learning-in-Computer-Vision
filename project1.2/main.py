@@ -4,12 +4,13 @@ import torch
 import wandb
 import argparse
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import datasets, transforms
 
 from train import train
 from models import BaselineCNN, BaselineCNN_w_dropout
 from plotimage import plotimages
+from datasets import SVHNBackgroundImages
 
 def main():
     model_options = {
@@ -65,22 +66,32 @@ def main():
     ])
 
 
-    trainset = datasets.SVHN(
-        root="SVHN/train",
-        split="train",
-        transform=train_transform,
-        download=True
-    )
+    trainset = ConcatDataset([
+        datasets.SVHN(
+            root="SVHN/train",
+            split="train",
+            transform=train_transform,
+            download=True
+        ),
+        SVHNBackgroundImages(
+            train=true,
+            transform=train_transform
+        )
+    ])
     
-    testset = trainset = datasets.SVHN(
-        root="SVHN/test",
-        split="test",
-        transform=test_transform,
-        download=True
-    )
-
-###
-    transform = []
+    testset = ConcatDataset([
+        datasets.SVHN(
+            root="SVHN/test",
+            split="test",
+            transform=test_transform,
+            download=True
+        ),
+        SVHNBackgroundImages(
+            train=false,
+            transform=test_transform
+        )
+    ])
+    
 
     # WANDB 1. Start a new run
     wandb.init(project='numDetection', entity='dlincv')
