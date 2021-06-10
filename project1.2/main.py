@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from numpy import UFUNC_BUFSIZE_DEFAULT
 from numpy.core.fromnumeric import amax, argmax
 import torch
 from torchvision.transforms.transforms import Resize
@@ -84,7 +85,7 @@ def main():
             transform=train_transform,
             download=True
         ),
-        Subset(train_background_data, indices = range(0, len(train_background_data), 8))
+        Subset(train_background_data, indices = range(0, len(train_background_data), 2))
     ])
 
     test_background_data = SVHNBackgroundImages(
@@ -99,7 +100,7 @@ def main():
             transform=test_transform,
             download=True
         ),
-        Subset(test_background_data, indices=range(0, len(test_background_data), 8))
+        Subset(test_background_data, indices=range(0, len(test_background_data), 2))
     ])
     
 
@@ -151,21 +152,40 @@ def main():
         )
 
         test_loader = DataLoader(testset, batch_size=1)
-
+        i = 0
         for images, bboxes in test_loader:
             images = images.to(device)
             print(images.shape)
             output = model(images)
-            
-            argmax_output = output.argmax(dim=1)
-            # print(argmax_output)
-            amax_output = output.amax(axis=1)
-            # print(amax_output.shape)
-            # print(amax_output*100)
 
-            argmax_output[amax_output < 0.65] = 10
+            argmax_output = output.argmax(dim=1)
+            amax_output = output.amax(axis=1)
+
+            mask = torch.zeros((images.shape[0],images.shape[1],len(bboxes)))
+
+            argmax_output[amax_output < 0.80] = 10
             print(argmax_output)
+            
+            #for all classes
+            # uniq = torch.unique(argmax_output)
+            # for i in range(10):
+            #     if i not in uniq:
+            #         continue
+            #     for j in range(argmax_output[0]):
+            #         for k in range(argmax_output[1]):
+            #             if argmax_output[i,j] == 10:
+            #                 continue
+            #             jump = 8
+            #             start = 18.5
+            #             center = (start+i * jump, start+j*jump)
+                        
+            #             stride = 27/2
+
+            #             prob = amax_output[i,j]
+            #             topleft = 
+
             break
+
 
 
         pass
