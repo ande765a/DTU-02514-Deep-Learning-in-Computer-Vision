@@ -15,13 +15,14 @@ if __name__ == '__main__':
             except:
                 print('Invalid file')
     
-    directories = ['SVHN/SVHN/train/', 'SVHN/SVHN/test/']
-    for directory in directories:
-        background_dir = directory + 'background/'
+    directories = ['SVHN/train/', 'SVHN/test/']
+    for out_directory in directories:
+        directory = os.path.join("SVHN", out_directory)
+        background_dir = os.path.join(directory, "background/")
         if not os.path.exists(background_dir): 
             os.mkdir(background_dir)
 
-        i = 0
+
         for filename in os.listdir(directory):
             if filename.endswith('.png'):
                 f = os.path.join(directory, filename)
@@ -44,15 +45,19 @@ if __name__ == '__main__':
                         if right < bboxs[j,1]+bboxs[j,3]:
                             right = bboxs[j,1]+bboxs[j,3]
                     left, right = int(left), int(right)
-                    print(left, right, img.shape)
-                    for k in range(0, img.shape[1]-digit_shape-1, digit_shape):
-                        for l in range(0, img.shape[0]-digit_shape-1, digit_shape):
-                            # if overlap with digit label - continue
-                            if (k > left and k < right) or (k+digit_shape > left and k+digit_shape < right):
-                                continue
 
-                            plt.imsave(f'{background_dir}{f_name}_{k}{l}.png', img[l:l+digit_shape,k:k+digit_shape])
-                i += 1
-                print(i)
-                if i == 5: break
+                    def loop():
+                        i = 0
+                        for k in range(0, img.shape[1]-digit_shape-1, digit_shape // 2):
+                            for l in range(0, img.shape[0]-digit_shape-1, digit_shape // 2):
+                                # if overlap with digit label - continue
+                                if (k > left and k < right) or (k+digit_shape > left and k+digit_shape < right):
+                                    continue
+
+                                plt.imsave(f'{background_dir}{f_name}_{k}{l}.jpg', img[l:l+digit_shape,k:k+digit_shape])
+                                i += 1
+                                if i == 3:
+                                    return
+                    
+                    loop()
 

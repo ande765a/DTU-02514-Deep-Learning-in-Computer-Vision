@@ -46,16 +46,16 @@ class BaselineCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(1000, 200),
             nn.ReLU(),
-            nn.Linear(200, 10),
-            nn.Softmax(dim=1)
+            nn.Linear(200, 11)
         )
     
     def forward(self, x):
         x = self.convolutional(x)
         #reshape x so it becomes flat, except for the first dimension (which is the minibatch)
         x = x.view(x.size(0), -1)
-        x = self.fully_connected(x)
-        return x
+        logits = self.fully_connected(x)
+        
+        return F.softmax(logits), logits
 
 
 class BaselineCNN_w_dropout(nn.Module):

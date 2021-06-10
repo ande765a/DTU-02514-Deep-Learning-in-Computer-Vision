@@ -20,4 +20,4 @@ def analyze_data(trainset, batch_size):
     filename = plotimages(train_loader)
     
     return filename
-    
+        

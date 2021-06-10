@@ -6,10 +6,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 
-def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size=64):
+def train(model, optimizer, trainset, testset, config, num_workers=8, num_epochs=10, batch_size=64):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     criterion = nn.CrossEntropyLoss()
 
     train_acc = []
@@ -24,19 +24,19 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
         train_correct = 0
         model.train()
         for data, target in tqdm(train_loader):
-            print(data, target)
             optimizer.zero_grad()
 
-
+            #target = onehot(target_num, 11) # One hot encode our vectors!
             data, target = data.to(device), target.to(device)
-            output = model(data)
+
+            output = model(data).view(data.shape[0], -1)
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
 
             train_loss.append(loss.item())
 
-            predicted = (output > 0.5).to(torch.int)
+            predicted = output.argmax(dim=1)
             train_correct += (target == predicted).sum().cpu().item()
 
 
@@ -47,11 +47,11 @@ def train(model, optimizer, trainset, testset, config, num_epochs=10, batch_size
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
       
-            output = model(data)
+            output = model(data).view(data.shape[0], -1)
             loss = criterion(output, target).cpu().item()
             test_loss.append(loss)
 
-            predicted = (output > 0.5).to(torch.int)
+            predicted = output.argmax(dim=1)
             test_correct += (target == predicted).sum().cpu().item()
         
         train_acc.append(train_correct/len(trainset))
