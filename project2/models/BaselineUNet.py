@@ -89,9 +89,9 @@ class Up(nn.Module):
 		out = self.conv(out)
 		return out
 
-class UNet(nn.Module):
+class BaselineUNet(nn.Module):
 	def __init__(self, in_channels, height, width):
-		super(UNet, self).__init__()
+		super(BaselineUNet, self).__init__()
 		self.conv_in = DoubleConv2d(in_channels=in_channels, out_channels=64, kernel_size=1)
 	
 		# Downsample
