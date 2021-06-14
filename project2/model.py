@@ -119,8 +119,6 @@ class UNet(nn.Module):
 		
 		# Output
 		mask_logits = self.conv_out(out)
-		has_subtitles_conv = self.has_subtitle_conv(latent)
-
 		mask = torch.sigmoid(mask_logits)
 		
 		return mask, mask_logits
