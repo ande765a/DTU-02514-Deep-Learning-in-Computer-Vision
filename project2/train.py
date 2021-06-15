@@ -3,18 +3,19 @@ from tqdm import tqdm
 import wandb
 import torch
 import torch.nn as nn
-from utils import bce_loss, dice_loss, focal_loss, confusionmatrix, dice_coef, plotimages, measures
+from utils import bce_loss, dice_loss, focal_loss, confusionmatrix, dice_coef, plotimages, measures, run_test, WeightedFocalLoss
 from torch.utils.data import DataLoader
 
 
-def train(model, optimizer, train_set, validation_set, config, num_workers=8, num_epochs=10, batch_size=64):
+def train(model, optimizer, train_set, validation_set, test_set, config, num_workers=8, num_epochs=10, batch_size=64, loss_func=WeightedFocalLoss):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    criterion = nn.BCEWithLogitsLoss()
-    img_size = 128
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    criterion = loss_func()
+    
     train_acc = []
     validation_acc = []
     train_loss = []
@@ -24,9 +25,7 @@ def train(model, optimizer, train_set, validation_set, config, num_workers=8, nu
     for epoch in tqdm(range(num_epochs), unit='epoch'):
         
         # Train loop
-        train_total = 0
         train_loss_epoch = []
-        train_correct = 0
         TP_train = 0 
         TN_train = 0 
         FN_train = 0 
@@ -52,21 +51,18 @@ def train(model, optimizer, train_set, validation_set, config, num_workers=8, nu
             FP_train += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
             FN_train += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
-        accuracy_train, dice_train, specificity_train, sensistivity_train = measures(TP_train, TN_train, FP_train, FN_train)
+        accuracy_train, dice_train, specificity_train, sensitivity_train = measures(TP_train, TN_train, FP_train, FN_train)
         # Validation loop
         val_loss_epoch = []
-        val_correct = 0
         model.eval()
-        val_total = 0 
         
         TP_val = 0 
         FP_val = 0 
         TN_val = 0 
         FN_val = 0
         for data, target in validation_loader:
-            num_classes = target.shape[3]
             data, target = data.to(device), target.to(device)
-            output, logits = model(data)#.view(data.shape[0], -1)
+            output, logits = model(data)
             
             loss = criterion(logits, target).cpu().item()
             
@@ -80,10 +76,7 @@ def train(model, optimizer, train_set, validation_set, config, num_workers=8, nu
             FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
             
         accuracy_val, dice_val, specificity_val, sensistivity_val = measures(TP_val, TN_val, FP_val, FN_val)
-        
-        #print(f'Dice is {dice_val},\n accuracy: {accuracy_val},\n specificity {specificity_val},\n sensitivity {sensistivity_val}')
-        #print(f'{dice_score}')
-        
+
         # print(f'val correct {val_correct}')
         train_acc.append(accuracy_train)
         validation_acc.append(accuracy_val)
@@ -101,10 +94,17 @@ def train(model, optimizer, train_set, validation_set, config, num_workers=8, nu
             "train_loss": train_loss[-1],
             "validation_loss": validation_loss[-1],
             "train_dice_score": dice_score_train[-1],
-            "val_dice_score": dice_score_val[-1]
+            "val_dice_score": dice_score_val[-1],
+            "specificity_train": specificity_train,
+            "specificity_val": specificity_val,
+            "sensitivity_train": sensitivity_train,
+            "sensitivity_val": sensistivity_val
         })
+    
     img_path = plotimages(validation_loader, model, 'lungs_validation.png')
     wandb.save(img_path)
+    run_test(model, test_loader=test_loader, criterion=criterion, config=config)
+
     # Save model
     torch.save(model.state_dict(), wandb.run.dir + wandb.run.name + '.pth')
     wandb.save(wandb.run.dir + wandb.run.name + '.pth')

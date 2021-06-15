@@ -7,9 +7,10 @@ import argparse
 import matplotlib.pyplot as plt
 
 import torch
+import torch.nn as nn
 from torchvision import transforms
 from torch.utils.data import DataLoader
-
+from utils import WeightedFocalLoss
 from train import train
 from models import BaselineUNet
 from dataloader import LIDC_crops
@@ -27,6 +28,11 @@ def main():
         "SGD": torch.optim.SGD
     }
 
+    loss_options = {
+        "BCE": nn.BCEWithLogitsLoss,
+        "Focal": WeightedFocalLoss
+    }
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="What kind of model to use", type=str, choices=model_options.keys(), default="BaselineUNet")
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="Adam")
@@ -36,6 +42,7 @@ def main():
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
+    parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCE")
 
     args = parser.parse_args()
 
@@ -66,6 +73,7 @@ def main():
 
     train_set = LIDC_crops(img_transform, label_transform)
     validation_set = LIDC_crops(img_transform, label_transform, mode = 'val')
+    test_set = LIDC_crops(img_transform, label_transform, mode = 'test')
 
 
     train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8)
@@ -80,6 +88,7 @@ def main():
     config.batch_size = batch_size
     config.epochs = epochs
     config.optimizer = optimizer_options[args.optimizer]
+    config.loss_func = args.loss
     config.transforms = img_transform
 
 
@@ -103,10 +112,12 @@ def main():
             optimizer=optimizer,
             train_set=train_set,
             validation_set=validation_set,
+            test_set=test_set,
             num_epochs=epochs,
             batch_size=batch_size,
             config=config,
-            num_workers=args.workers
+            num_workers=args.workers,
+            loss_func=loss_options[args.loss]
         )
 
     return
