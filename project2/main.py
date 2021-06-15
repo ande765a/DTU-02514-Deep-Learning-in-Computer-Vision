@@ -14,7 +14,7 @@ from train import train
 from models import BaselineUNet
 from dataloader import LIDC_crops
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
 
@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="Adam")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=15)
-    parser.add_argument("--batch-size", help="Batch size", type=int, default=32)
+    parser.add_argument("--batch-size", help="Batch size", type=int, default=128)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
@@ -61,7 +61,7 @@ def main():
             except Exception as e:
                 print(f"Invalid file {e}")
 
-    img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.4058, 0.1222)])
+    img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
     label_transform = transforms.ToTensor()
 
     train_set = LIDC_crops(img_transform, label_transform)
