@@ -47,10 +47,10 @@ def plotimages(dataloader, model, figName, figPath='figs/'):
     images, labels = next(iter(dataloader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     output, _ = model(images.to(device))
-
+    height, width = 6, 3
     plt.figure(figsize=(10, 50))
-    fig, ax = plt.subplots(6,3)
-    for i in range(0, 10):
+    fig, ax = plt.subplots(height, width)
+    for i in range(0, height):
         ax[i, 0].imshow(images[i].numpy()[0], "gray")
         # ax[i, 0].set_title("Image")
         ax[i, 0].axis("off")
@@ -128,7 +128,12 @@ class WeightedFocalLoss(torch.nn.Module):
     def forward(self, inputs, targets):
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
         targets = targets.type(torch.long)
-        at = self.alpha.gather(0, targets.data.view(-1))
+        # print(inputs.shape, targets.shape)
+        # at = self.alpha.gather(0, targets.data.view(-1))
         pt = torch.exp(-BCE_loss)
-        F_loss = at*(1-pt)**self.gamma * BCE_loss
+
+        # print(pt.shape, BCE_loss.shape)
+        # F_loss = at*(1-pt)**self.gamma * BCE_loss
+        F_loss = (1-pt)**self.gamma * BCE_loss
+
         return F_loss.mean()

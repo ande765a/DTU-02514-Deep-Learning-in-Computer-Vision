@@ -15,7 +15,7 @@ from train import train
 from models import BaselineUNet
 from dataloader import LIDC_crops
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
 

@@ -7,14 +7,14 @@ import PIL.Image as Image
 from torch.nn.functional import one_hot
 
 class LIDC_crops(torch.utils.data.Dataset):
-    def __init__(self, img_transform, label_transform, mode='train', data_path='LIDC_crops/LIDC_DLCV_version/'):
+    def __init__(self, img_transform, label_transform, mode='train', data_path='LIDC_crops/LIDC_DLCV_version/', label_version=0):
         'Initialization'
         self.img_transform = img_transform
+        self.label_version = label_version
         self.label_transform = label_transform
         data_path = os.path.join(data_path, mode)
         self.image_paths = glob.glob(data_path + '/images/*.png')
         self.gt_paths = glob.glob(data_path + '/images/*.png')
-
 
         
     def __len__(self):
@@ -27,7 +27,7 @@ class LIDC_crops(torch.utils.data.Dataset):
         
         split_path = image_path.split('/')
         split_path[3] = 'lesions'
-        label_path = os.path.join(*split_path)[:-4] + "_l0.png"
+        label_path = os.path.join(*split_path)[:-4] + "_l" + str(self.label_version) + ".png"
 
         image = Image.open(image_path)
         label = Image.open(label_path) 
