@@ -1,6 +1,6 @@
 #!/bin/sh
 #BSUB -q gpua100
-#BSUB -J 02-baseline-adam-no-aug
+#BSUB -J 02-UNET-FOCALLOSS.sh
 #BSUB -n 8
 #BSUB -R "span[block=1]"
 #BSUB -gpu "num=1:mode=exclusive_process"

@@ -48,19 +48,16 @@ def plotimages(dataloader, model, figName, figPath='figs/'):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     output, _ = model(images.to(device))
     height, width = 6, 3
-    plt.figure(figsize=(10, 50))
+    plt.figure(figsize=(10, 10))
     fig, ax = plt.subplots(height, width)
     for i in range(0, height):
         ax[i, 0].imshow(images[i].numpy()[0], "gray")
-        # ax[i, 0].set_title("Image")
         ax[i, 0].axis("off")
 
         ax[i, 1].imshow(labels[i].numpy()[0], "gray")
-        # ax[i, 1].set_title("Label")
         ax[i, 1].axis("off")
 
         ax[i, 2].imshow(output[i].detach().cpu().numpy()[0], "gray")
-        # ax[i, 2].set_title("Prediction")
         ax[i, 2].axis("off")
     fig.tight_layout()
     path = os.path.join(figPath, figName)

@@ -16,7 +16,6 @@ from dataloader import LIDC_crops
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
-
     model_options = {
         "BaselineUNet": BaselineUNet
     }
@@ -39,13 +38,19 @@ def main():
     parser.add_argument("--batch-size", help="Batch size", type=int, default=128)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCE")
+    parser.add_argument("--id", help="WandB ID tag to locate ensemble batch", type=str, default='basicRun')
+    parser.add_argument("--paths", help="list of paths to ensemble models separated by comma", type=str, default=None)
+
 
     args = parser.parse_args()
+
+    ensemble_id = args.id
 
     lr = args.lr
     epochs = args.epochs
     batch_size = args.batch_size
     augmentation = args.augmentation == 1
+
 
     if torch.cuda.is_available():
         print("The code will run on GPU.")
@@ -63,21 +68,26 @@ def main():
             except Exception as e:
                 print(f"Invalid file {e}")
 
-    
-    ensemble(4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model])
+    if args.paths:
+        print('sampling image')
+        sample_image(model_options[args.model], args.paths.split(','))
+    else:    
+        models = ensemble(ensemble_id, 4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model])
+        weigth_paths = ",".join([*models.keys()])
+        print(f'String path for ensemble models:\n{weigth_paths}\n')
 
-    return
 
 
-def ensemble(label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, num_workers=8):
-    models = []
+
+def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, num_workers=8):
+    models = {}
     for label_version in range(label_versions):
         img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
         label_transform = transforms.ToTensor()
 
         train_set = LIDC_crops(img_transform, label_transform, label_version=label_version)
-        validation_set = LIDC_crops(img_transform, label_transform, mode = 'val', label_version=label_version)
-        test_set = LIDC_crops(img_transform, label_transform, mode = 'test', label_version=label_version)
+        validation_set = LIDC_crops(img_transform, label_transform, mode='val', label_version=label_version)
+        test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=label_version)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -85,7 +95,8 @@ def ensemble(label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, 
 
         #WANDB
         #1. Start a new run
-        run = wandb.init(reinit=True, project='lungs', entity='dlincv')
+        run = wandb.init(reinit=True, notes=f'r{label_version}', tags=[ensemble_id], 
+                            project='lungs', entity='dlincv')
 
         # 2. Save model inputs and hyperparameters
         config = wandb.config
@@ -106,12 +117,12 @@ def ensemble(label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, 
         wandb.watch(model)
 
         #Initialize the optimizer
-        optimizer = optimizer(model.parameters(), lr=lr)
+        optim = optimizer(model.parameters(), lr=lr)
 
 
         train(
             model=model,
-            optimizer=optimizer,
+            optimizer=optim,
             train_set=train_set,
             validation_set=validation_set,
             test_set=test_set,
@@ -121,9 +132,40 @@ def ensemble(label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, 
             num_workers=num_workers,
             loss_func=loss_func
         )
-        models.append(model)
+        weights_path = os.path.join(wandb.run.dir,wandb.run.name + ".pth")
+        models[weights_path] = model
         run.finish()
+        print(f'Iteration {label_version} done')
     return models
+
+
+def sample_image(Net, model_paths):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
+    label_transform = transforms.ToTensor()
+
+    test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=0)
+    test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers = 8)
+
+    image, _ = next(iter(test_loader))
+    input_shape = image[0].shape
+
+    model = Net(*input_shape)
+
+    pred = torch.zeros(len(model_paths), image.shape[0], image.shape[1])
+    for path in model_paths:
+        model.load_state_dict(torch.load(path))
+
+        model.to(device)
+        pred[i,:,:] = model(image)[0][0]
+
+    wandb.init(notes=f'', tags='ensemble_sample', project='lungs', entity='dlincv')
+
+    # Plot - Save - Save img via path
+    wandb.save(pred.mean(dim=0))
+
+    return 
 
 
 
