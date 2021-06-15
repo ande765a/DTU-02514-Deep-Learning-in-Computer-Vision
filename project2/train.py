@@ -1,6 +1,7 @@
+import os
+import wandb
 import numpy as np
 from tqdm import tqdm
-import wandb
 import torch
 import torch.nn as nn
 from utils import bce_loss, dice_loss, focal_loss, confusionmatrix, dice_coef, plotimages, measures, run_test, WeightedFocalLoss
@@ -106,8 +107,9 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
     run_test(model, test_loader=test_loader, criterion=criterion, config=config)
 
     # Save model
-    torch.save(model.state_dict(), wandb.run.dir + wandb.run.name + '.pth')
-    wandb.save(wandb.run.dir + wandb.run.name + '.pth')
-    print(f'Path to model is: {wandb.run.dir + wandb.run.name + ".pth"}')
+    weights_path = os.path.join(wandb.run.dir,wandb.run.name + ".pth")
+    torch.save(model.state_dict(),weights_path)
+    wandb.save(weights_path)
+    print(f'Path to model is: {weights_path}')
     
     return train_acc, validation_acc, train_loss, validation_loss

@@ -17,4 +17,4 @@ module load cuda/11.1.1
 
 PATH=~/miniconda3/bin:$PATH
 
-python main.py --epochs 50 --batch-size 128
+python main.py --epochs 50 --batch-size 128 --loss Focal
