@@ -1,1 +1,2 @@
 from models.BaselineUNet import BaselineUNet
+from models.BaselineUNetDropout import BaselineUNetDropout

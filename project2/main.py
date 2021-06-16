@@ -12,7 +12,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from utils import WeightedFocalLoss
 from train import train
-from models import BaselineUNet
+from models import BaselineUNet, BaselineUNetDropout
 from dataloader import LIDC_crops
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
@@ -20,7 +20,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 def main():
 
     model_options = {
-        "BaselineUNet": BaselineUNet
+        "BaselineUNet": BaselineUNet,
+        "BaselineUnetDropout": BaselineUNetDropout
     }
 
     optimizer_options = {
@@ -40,6 +41,7 @@ def main():
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=15)
     parser.add_argument("--batch-size", help="Batch size", type=int, default=128)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
+    parser.add_argument("--monte", help="Train on whole set of labels", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
     parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCE")
@@ -50,6 +52,7 @@ def main():
     epochs = args.epochs
     batch_size = args.batch_size
     augmentation = args.augmentation == 1
+
 
     if torch.cuda.is_available():
         print("The code will run on GPU.")
@@ -71,9 +74,15 @@ def main():
     img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
     label_transform = transforms.ToTensor()
 
-    train_set = LIDC_crops(img_transform, label_transform)
-    validation_set = LIDC_crops(img_transform, label_transform, mode = 'val')
-    test_set = LIDC_crops(img_transform, label_transform, mode = 'test')
+    if args.monte == 1:
+        print("Doing random label sampling")
+        label_version = [0, 1, 2, 3]
+    else:
+        label_version = 0 
+
+    train_set = LIDC_crops(img_transform, label_transform, label_version = label_version)
+    validation_set = LIDC_crops(img_transform, label_transform, mode = 'val', label_version = label_version)
+    test_set = LIDC_crops(img_transform, label_transform, mode = 'test', label_version = label_version)
 
 
     train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8)
