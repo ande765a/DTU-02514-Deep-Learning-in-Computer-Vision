@@ -163,7 +163,7 @@ def generalized_energy_distance(models, test_loader):
     for image, annotations in test_loader:
         model, model_prime = np.random.choice(models, replace=True, size=2)
         y_hat, y_hat_prime = model(image), model_prime(image)
-        d = distance(y, y_hat_prime)
+        d = distance(y_hat, y_hat_prime)
         term3_distances.append(d)
 
     return 2 * torch.cat(term1_distances).mean() - torch.cat(term2_distances).mean() - torch.cat(term3_distances).mean()
