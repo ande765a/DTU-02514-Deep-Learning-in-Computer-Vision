@@ -51,4 +51,4 @@ class LIDC_crops(torch.utils.data.Dataset):
         X, *YS = self.base_transform([image, *labels])
         X = self.image_transform(X)
 
-        return X, torch.stack(YS)
+        return (X, *YS)
