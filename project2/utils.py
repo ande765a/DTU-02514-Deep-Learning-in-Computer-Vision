@@ -47,8 +47,8 @@ def plotimages(dataloader, model, figName, figPath='figs/'):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     output, _ = model(images.to(device))
     height, width = 6, 3
-    plt.figure(figsize=(10, 10))
-    fig, ax = plt.subplots(height, width)
+
+    fig, ax = plt.subplots(height, width, figsize=(10, 60))
     for i in range(0, height):
         ax[i, 0].imshow(images[i].numpy()[0], "gray")
         ax[i, 0].axis("off")
@@ -73,7 +73,7 @@ def measures(TP, TN, FP, FN):
         specificity = (TN +1 ) / (TN + FP +1)
         sensitivity = (TP +1) / (TP + FN +1)
         iou = (TP +1) / (TP + FP + FN +1)
-        return accuracy, dice, specificity, sensitivity
+        return accuracy, dice, specificity, sensitivity, iou
 
 
 def run_test(model, test_loader, criterion, config):
@@ -102,13 +102,14 @@ def run_test(model, test_loader, criterion, config):
         FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
         FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
-    accuracy_test, dice_test, specificity_test, sensistivity_test = measures(TP_val, TN_val, FP_val, FN_val)
+    accuracy_test, dice_test, specificity_test, sensistivity_test, iou_test = measures(TP_val, TN_val, FP_val, FN_val)
 
     config.test_accuracy = accuracy_test
     config.test_loss = np.mean(test_loss)
     config.test_dice = dice_test
     config.test_specificity = specificity_test
     config.test_sensitivity = sensistivity_test
+    config.test_iou = iou_test
 
     img_path = plotimages(test_loader, model, 'lung_test.png')
     wandb.save(img_path)
