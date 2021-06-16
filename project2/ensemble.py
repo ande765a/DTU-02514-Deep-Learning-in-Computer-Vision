@@ -82,15 +82,18 @@ def main():
         Model = model_options[args.model]
         img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
         label_transform = transforms.ToTensor()
-        train_set = LIDC_crops(img_transform, label_transform, label_version=1)
+        test_set = LIDC_crops(img_transform, label_transform, mode='test')
         
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=8)
+
         models = []
+        # paths = args.paths[0].split(',')
         for path in args.paths:
             model = Model(1, 128, 128)
             model.load_state_dict(torch.load(path, map_location=device))
             models.append(model)
 
-        ged = generalized_energy_distance(models, train_set)
+        ged = generalized_energy_distance(models, test_loader)
         print(f"Generalized Energy Distance for ensamble model: {ged}")
 
         #sample_image(model_options[args.model], args.paths, args.id)
@@ -108,9 +111,9 @@ def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, los
         img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
         label_transform = transforms.ToTensor()
 
-        train_set = LIDC_crops(img_transform, label_transform, label_version=label_version)
-        validation_set = LIDC_crops(img_transform, label_transform, mode='val', label_version=label_version)
-        test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=label_version)
+        train_set = LIDC_crops(img_transform, label_transform, label_version=[label_version])
+        validation_set = LIDC_crops(img_transform, label_transform, mode='val', label_version=[label_version])
+        test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=[label_version])
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -168,7 +171,7 @@ def sample_image(Net, model_paths, ensemble_id):
     img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
     label_transform = transforms.ToTensor()
 
-    test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=0)
+    test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=[0])
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers = 8)
 
     image, _ = next(iter(test_loader))

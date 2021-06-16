@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from utils import WeightedFocalLoss
 from train import train
 from models import BaselineUNet, BaselineUNetDropout
-from dataloader import LIDC_crops, collate_fn
+from dataloader import LIDC_crops
 from transforms import MultiHorizontalFlip, MultiRandomRotation, MultiRandomCrop, MultiToTensor, MultiNormalize
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -93,7 +93,7 @@ def main():
     validation_set = LIDC_crops(test_transform, image_transform, mode = 'val', label_version = label_version)
     test_set = LIDC_crops(test_transform, image_transform, mode = 'test', label_version = label_version)
 
-    train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8, collate_fn = collate_fn)
+    train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8)
 
     #WANDB
     #1. Start a new run

@@ -32,11 +32,11 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
         FN_train = 0 
         FP_train = 0
         model.train()
-        for data, targets in tqdm(train_loader):
+        for data, *targets in tqdm(train_loader):
             data = data.to(device)
-            for target in targets.permute(1, 0, 2, 3, 4):
+            for target in targets:
                 optimizer.zero_grad()
-                target =  target.to(device)
+                target = target.to(device)
             
                 output, logits = model(data)
                 output = torch.where(output > 0.5, 1, 0)

@@ -43,7 +43,7 @@ def focal_loss(y_real, y_pred):
 
 ## PLOT IMAGES ##
 def plotimages(dataloader, model, figName, figPath='figs/'):
-    images, labels = next(iter(dataloader))
+    images, *labels = next(iter(dataloader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     output, _ = model(images.to(device))
     height, width = 6, 3
@@ -53,7 +53,7 @@ def plotimages(dataloader, model, figName, figPath='figs/'):
         ax[i, 0].imshow(images[i].numpy()[0], "gray")
         ax[i, 0].axis("off")
 
-        ax[i, 1].imshow(labels[i].numpy()[0], "gray")
+        ax[i, 1].imshow(labels[0,i].numpy()[0], "gray")
         ax[i, 1].axis("off")
 
         ax[i, 2].imshow(output[i].detach().cpu().numpy()[0], "gray")
@@ -86,21 +86,21 @@ def run_test(model, test_loader, criterion, config):
     test_loss = []
     
     model.eval()
-    for data, target in test_loader:
-        num_classes = target.shape[3]
-        data, target = data.to(device), target.to(device)
-        output, logits = model(data)#.view(data.shape[0], -1)
-        
-        loss = criterion(logits, target).cpu().item()
-        
-        test_loss.append(loss)
-                    
-        output = torch.where(output > 0.5, 1, 0)
-        
-        TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
-        TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
-        FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
-        FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
+    for data, *targets in test_loader:
+        for target in targets:
+            data, target = data.to(device), target.to(device)
+            output, logits = model(data)
+            
+            loss = criterion(logits, target).cpu().item()
+            
+            test_loss.append(loss)
+                        
+            output = torch.where(output > 0.5, 1, 0)
+            
+            TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
+            TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
+            FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
+            FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
     accuracy_test, dice_test, specificity_test, sensistivity_test, iou_test = measures(TP_val, TN_val, FP_val, FN_val)
 
