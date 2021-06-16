@@ -128,3 +128,11 @@ class MultiRandomCrop(torch.nn.Module):
 class MultiToTensor():
     def __call__(self, images):
         return [TF.to_tensor(image) for image in images]
+
+
+class MultiNormalize():
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, images):
+        return [TF.normalize(image, **self.kwargs) for image in images]
