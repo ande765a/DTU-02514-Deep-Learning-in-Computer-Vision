@@ -52,7 +52,7 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
             FP_train += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
             FN_train += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
-        accuracy_train, dice_train, specificity_train, sensitivity_train = measures(TP_train, TN_train, FP_train, FN_train)
+        accuracy_train, dice_train, specificity_train, sensitivity_train, iou_train = measures(TP_train, TN_train, FP_train, FN_train)
         # Validation loop
         val_loss_epoch = []
         model.eval()
@@ -76,9 +76,8 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
             FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
             FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
             
-        accuracy_val, dice_val, specificity_val, sensistivity_val = measures(TP_val, TN_val, FP_val, FN_val)
+        accuracy_val, dice_val, specificity_val, sensistivity_val, iou_val = measures(TP_val, TN_val, FP_val, FN_val)
 
-        # print(f'val correct {val_correct}')
         train_acc.append(accuracy_train)
         validation_acc.append(accuracy_val)
         train_loss.append(np.mean(train_loss_epoch))
@@ -99,7 +98,9 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
             "specificity_train": specificity_train,
             "specificity_val": specificity_val,
             "sensitivity_train": sensitivity_train,
-            "sensitivity_val": sensistivity_val
+            "sensitivity_val": sensistivity_val,
+            "IoU train": iou_train,
+            "IoU val": iou_val
         })
     
     img_path = plotimages(validation_loader, model, 'lungs_validation.png')

@@ -8,6 +8,10 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from torch.utils.data import DataLoader
+
+import matplotlib.pyplot as plt
+
+
 from utils import WeightedFocalLoss
 from train import train
 from models import BaselineUNet
@@ -70,7 +74,7 @@ def main():
 
     if args.paths:
         print('sampling image')
-        sample_image(model_options[args.model], args.paths.split(','))
+        sample_image(model_options[args.model], args.paths.split(','), args.id)
     else:    
         models = ensemble(ensemble_id, 4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model])
         weigth_paths = ",".join([*models.keys()])
@@ -139,7 +143,7 @@ def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, los
     return models
 
 
-def sample_image(Net, model_paths):
+def sample_image(Net, model_paths, ensemble_id):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
@@ -152,20 +156,41 @@ def sample_image(Net, model_paths):
     input_shape = image[0].shape
 
     model = Net(*input_shape)
-
-    pred = torch.zeros(len(model_paths), image.shape[0], image.shape[1])
-    for path in model_paths:
+    pred = torch.zeros(len(model_paths), image.shape[2], image.shape[3])
+    for i, path in enumerate(model_paths):
         model.load_state_dict(torch.load(path))
 
-        model.to(device)
+        # model.to(device)
+        model.eval()
         pred[i,:,:] = model(image)[0][0]
 
-    wandb.init(notes=f'', tags='ensemble_sample', project='lungs', entity='dlincv')
 
-    # Plot - Save - Save img via path
-    wandb.save(pred.mean(dim=0))
+    fig, ax = plt.subplots(2,3, figsize=(9, 6))
+    
+    ax[0,0].imshow(image[0].numpy()[0], cmap="gray")
+    ax[0,0].set_title('Input image')
+    ax[0,0].axis("off")
+    k = 0
+    for i in range(2):
+        for j in range(2):
+            ax[j,i+1].imshow(pred[k].detach().cpu().numpy(), cmap="gray")
+            ax[j,i+1].set_title(f"Model {k+1}")
+            ax[j,i+1].axis("off")
+            k += 1
 
-    return 
+    ax[1,0].imshow(pred.mean(dim=0).detach().cpu().numpy())
+    ax[1,0].set_title(f"Mean of all predictions")
+    ax[1,0].axis("off")
+
+    fig.tight_layout()
+    path = os.path.join('figs/', ensemble_id + '.png')
+    fig.savefig(path)
+    
+    wandb.init(notes=f'', tags=[ensemble_id, 'ensemble_sample'], project='lungs', entity='dlincv')
+
+    wandb.save(path)
+
+
 
 
 
