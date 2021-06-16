@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
-
 ## FP, FN, TP, TN ##
 def confusionmatrix(pred, true):
     ## returns: TN, FP, FN, TTP
@@ -134,3 +133,37 @@ class WeightedFocalLoss(torch.nn.Module):
         F_loss = (1-pt)**self.gamma * BCE_loss
 
         return F_loss.mean()
+
+
+def iou(mask1, mask2):
+    intersection = torch.sum(mask1 & mask2, dim=-1)
+    union = torch.sum(mask1 | mask2, dim=-1)
+    return intersection.true_divide(union)
+
+def distance(y, y_hat):
+    return 1 - iou(y, y_hat)
+
+def generalized_energy_distance(models, test_loader):
+    term1_distances = []
+    for image, annotations in test_loader:
+        model = np.random.choice(models)
+        y = np.random.choice(annotations)
+        y_hat = model(image)
+        d = distance(y, y_hat)
+        term1_distances.append(d)
+
+    term2_distances = []
+    for image, annotations in test_loader:
+        model = np.random.choice(models)
+        y, y_prime = np.random.choice(annotations, replace=True, size=2)
+        d = distance(y, y_prime)
+        term2_distances.append(d)
+
+    term3_distances = []
+    for image, annotations in test_loader:
+        model, model_prime = np.random.choice(models, replace=True, size=2)
+        y_hat, y_hat_prime = model(image), model_prime(image)
+        d = distance(y, y_hat_prime)
+        term3_distances.append(d)
+
+    return 2 * torch.cat(term1_distances).mean() - torch.cat(term2_distances).mean() - torch.cat(term3_distances).mean()
