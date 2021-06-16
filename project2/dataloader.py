@@ -27,7 +27,12 @@ class LIDC_crops(torch.utils.data.Dataset):
         
         split_path = image_path.split('/')
         split_path[3] = 'lesions'
-        label_path = os.path.join(*split_path)[:-4] + "_l" + str(self.label_version) + ".png"
+        
+        label = self.label_version
+        if isinstance(self.label_version, list):
+            label = np.random.choice(self.label_version)
+        
+        label_path = os.path.join(*split_path)[:-4] + "_l" + str(label) + ".png"
 
         image = Image.open(image_path)
         label = Image.open(label_path) 

@@ -17,9 +17,12 @@ from train import train
 from models import BaselineUNet
 from dataloader import LIDC_crops
 
+from utils import generalized_energy_distance
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
+    
     model_options = {
         "BaselineUNet": BaselineUNet
     }
@@ -43,8 +46,7 @@ def main():
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCE")
     parser.add_argument("--id", help="WandB ID tag to locate ensemble batch", type=str, default='basicRun')
-    parser.add_argument("--paths", help="list of paths to ensemble models separated by comma", type=str, default=None)
-
+    parser.add_argument("--paths", help="list of paths to ensemble models separated by comma", type=str, nargs="+", default=None)
 
     args = parser.parse_args()
 
@@ -60,6 +62,8 @@ def main():
         print("The code will run on GPU.")
     else:
         print("The code will run on CPU.")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
 
     if not os.path.exists(f'./LIDC_crops'):
@@ -72,9 +76,24 @@ def main():
             except Exception as e:
                 print(f"Invalid file {e}")
 
-    if args.paths:
+    if len(args.paths) > 0:
         print('sampling image')
-        sample_image(model_options[args.model], args.paths.split(','), args.id)
+
+        Model = model_options[args.model]
+        img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
+        label_transform = transforms.ToTensor()
+        train_set = LIDC_crops(img_transform, label_transform, label_version=1)
+        
+        models = []
+        for path in args.paths:
+            model = Model(1, 128, 128)
+            model.load_state_dict(torch.load(path, map_location=device))
+            models.append(model)
+
+        ged = generalized_energy_distance(models, train_set)
+        print(f"Generalized Energy Distance for ensamble model: {ged}")
+
+        #sample_image(model_options[args.model], args.paths, args.id)
     else:    
         models = ensemble(ensemble_id, 4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model])
         weigth_paths = ",".join([*models.keys()])
