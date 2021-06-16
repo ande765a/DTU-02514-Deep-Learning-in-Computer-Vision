@@ -123,3 +123,8 @@ class MultiRandomCrop(torch.nn.Module):
 
     def __call__(self, images):
         return [TF.resized_crop(image, self.size, self.interpolation, self.max_size, self.antialias) for image in images]
+
+
+class MultiToTensor():
+    def __call__(self, images):
+        return [TF.to_tensor(image) for image in images]
