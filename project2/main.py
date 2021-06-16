@@ -13,8 +13,8 @@ from torch.utils.data import DataLoader
 from utils import WeightedFocalLoss
 from train import train
 from models import BaselineUNet, BaselineUNetDropout
-from dataloader import LIDC_crops
-
+from dataloader import LIDC_crops, collate_fn
+from transforms import MultiHorizontalFlip, MultiRandomRotation, MultiRandomCrop, MultiToTensor, MultiNormalize
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
@@ -51,7 +51,7 @@ def main():
     lr = args.lr
     epochs = args.epochs
     batch_size = args.batch_size
-    augmentation = args.augmentation == 1
+    augmentation = args.augmentation
 
 
     if torch.cuda.is_available():
@@ -71,21 +71,29 @@ def main():
             except Exception as e:
                 print(f"Invalid file {e}")
 
-    img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
-    label_transform = transforms.ToTensor()
+    base_transform = [MultiToTensor()]
 
-    if args.monte == 1:
-        print("Doing random label sampling")
-        label_version = [0, 1, 2, 3]
-    else:
-        label_version = 0 
+    if augmentation == 1: 
+        base_transform += [
+            MultiRandomCrop((128, 128)),
+            MultiHorizontalFlip(), 
+            MultiRandomRotation(20)
+        ]
 
-    train_set = LIDC_crops(img_transform, label_transform, label_version = label_version)
-    validation_set = LIDC_crops(img_transform, label_transform, mode = 'val', label_version = label_version)
-    test_set = LIDC_crops(img_transform, label_transform, mode = 'test', label_version = label_version)
+    
+    base_transform = transforms.Compose(base_transform)
+    test_transform = transforms.Compose([MultiToTensor()])
+    image_transform = transforms.Compose([
+        transforms.Normalize((0.4058,), (0.1222,))
+    ])
 
+    label_version = [0, 1, 2, 3]
 
-    train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8)
+    train_set = LIDC_crops(base_transform, image_transform, label_version = label_version)
+    validation_set = LIDC_crops(test_transform, image_transform, mode = 'val', label_version = label_version)
+    test_set = LIDC_crops(test_transform, image_transform, mode = 'test', label_version = label_version)
+
+    train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8, collate_fn = collate_fn)
 
     #WANDB
     #1. Start a new run
@@ -98,8 +106,7 @@ def main():
     config.epochs = epochs
     config.optimizer = optimizer_options[args.optimizer]
     config.loss_func = args.loss
-    config.transforms = img_transform
-
+    config.transforms = image_transform
 
     input_shape = next(iter(train_loader))[0][0].shape
     # Init network

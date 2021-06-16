@@ -6,17 +6,24 @@ import PIL.Image as Image
 
 from torch.nn.functional import one_hot
 
+
+def collate_fn(batch):
+    print(batch)
+    exit()
+    return None, None
+
+    #return torch.stack(images), torch.stack(masks)
+
 class LIDC_crops(torch.utils.data.Dataset):
-    def __init__(self, img_transform, label_transform, mode='train', data_path='LIDC_crops/LIDC_DLCV_version/', label_version=0):
+    def __init__(self, base_transform, image_transform, mode='train', data_path='LIDC_crops/LIDC_DLCV_version/', label_version=[0, 1, 2, 3]):
         'Initialization'
-        self.img_transform = img_transform
+        self.base_transform = base_transform
         self.label_version = label_version
-        self.label_transform = label_transform
+        self.image_transform = image_transform
         data_path = os.path.join(data_path, mode)
         self.image_paths = glob.glob(data_path + '/images/*.png')
         self.gt_paths = glob.glob(data_path + '/images/*.png')
 
-        
     def __len__(self):
         'Returns the total number of samples'
         return len(self.image_paths)
@@ -27,20 +34,21 @@ class LIDC_crops(torch.utils.data.Dataset):
         
         split_path = image_path.split('/')
         split_path[3] = 'lesions'
-        
-        label = self.label_version
-        if isinstance(self.label_version, list):
-            label = np.random.choice(self.label_version)
-        
-        label_path = os.path.join(*split_path)[:-4] + "_l" + str(label) + ".png"
-
         image = Image.open(image_path)
-        label = Image.open(label_path) 
-        label = np.array(label)/255
 
-        X = self.img_transform(image)
-        y = self.label_transform(label)#.to(torch.long).squeeze(0)
+        if isinstance(self.label_version, int):
+            label_path = os.path.join(*split_path)[:-4] + "_l" + str(self.label_version) + ".png"
+            label = Image.open(label_path)
+            X, Y = self.base_transform([image, label])
+            X = self.image_transform(X)
+            return X, Y
+        
+        label_paths = [
+            os.path.join(*split_path)[:-4] + "_l" + str(version) + ".png"
+            for version in self.label_version
+        ]
+        labels = [Image.open(path) for path in label_paths]
+        X, *YS = self.base_transform([image, *labels])
+        X = self.image_transform(X)
 
-        # y = torch.squeeze(one_hot(y_temp.to(torch.long), 2)).permute(2,0,1)
-
-        return X, y
+        return X, torch.stack(YS)

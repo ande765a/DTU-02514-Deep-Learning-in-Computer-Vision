@@ -32,25 +32,27 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
         FN_train = 0 
         FP_train = 0
         model.train()
-        for data, target in tqdm(train_loader):
-            optimizer.zero_grad()
-            data, target = data.to(device), target.to(device)
-        
-            output, logits = model(data)
-            output = torch.where(output > 0.5, 1, 0)
-
-            loss = criterion(logits, target)
+        for data, targets in tqdm(train_loader):
+            data = data.to(device)
+            for target in targets.permute(1, 0, 2, 3, 4):
+                optimizer.zero_grad()
+                target =  target.to(device)
             
-            loss.backward()
-            optimizer.step()
-            train_loss_epoch.append(loss.item())
+                output, logits = model(data)
+                output = torch.where(output > 0.5, 1, 0)
 
-            predicted = output
-            
-            TP_train += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
-            TN_train += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
-            FP_train += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
-            FN_train += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
+                loss = criterion(logits, target)
+                
+                loss.backward()
+                optimizer.step()
+                train_loss_epoch.append(loss.item())
+
+                predicted = output
+                
+                TP_train += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
+                TN_train += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
+                FP_train += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
+                FN_train += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
         accuracy_train, dice_train, specificity_train, sensitivity_train = measures(TP_train, TN_train, FP_train, FN_train)
         # Validation loop

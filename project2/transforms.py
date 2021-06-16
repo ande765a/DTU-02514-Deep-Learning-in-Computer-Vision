@@ -11,7 +11,7 @@ import torchvision
 import torch.functional as F
 
 import torchvision.transforms.functional as TF
-from torchvision.transforms import InterpolationMode, _interpolation_modes_from_int
+from torchvision.transforms import InterpolationMode
 
 
 class Rescale(object):
@@ -54,7 +54,8 @@ class MultiRandomRotation():
 
 
 class MultiRandomCrop(torch.nn.Module):
-    def __init__(self, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), interpolation=InterpolationMode.BILINEAR):
+    def __init__(self, size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), interpolation=InterpolationMode.BILINEAR):
+        self.size = size
         super().__init__()
         if not isinstance(scale, Sequence):
             raise TypeError("Scale should be a sequence")
@@ -62,14 +63,6 @@ class MultiRandomCrop(torch.nn.Module):
             raise TypeError("Ratio should be a sequence")
         if (scale[0] > scale[1]) or (ratio[0] > ratio[1]):
             warnings.warn("Scale and ratio should be of kind (min, max)")
-
-        # Backward compatibility with integer value
-        if isinstance(interpolation, int):
-            warnings.warn(
-                "Argument interpolation should be of type InterpolationMode instead of int. "
-                "Please, use InterpolationMode enum."
-            )
-            interpolation = _interpolation_modes_from_int(interpolation)
 
         self.interpolation = interpolation
         self.scale = scale
@@ -88,7 +81,7 @@ class MultiRandomCrop(torch.nn.Module):
             tuple: params (i, j, h, w) to be passed to ``crop`` for a random
             sized crop.
         """
-        width, height = F._get_image_size(image)
+        width, height = TF._get_image_size(image)
         area = height * width
 
         log_ratio = torch.log(torch.tensor(ratio))
@@ -122,7 +115,7 @@ class MultiRandomCrop(torch.nn.Module):
         return i, j, h, w
 
     def __call__(self, images):
-        return [TF.resized_crop(image, self.size, self.interpolation, self.max_size, self.antialias) for image in images]
+        return [TF.resized_crop(image, *self.get_params(image, self.scale, self.ratio), self.size, self.interpolation) for image in images]
 
 
 class MultiToTensor():
