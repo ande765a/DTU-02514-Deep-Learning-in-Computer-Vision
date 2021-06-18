@@ -7,13 +7,6 @@ import PIL.Image as Image
 from torch.nn.functional import one_hot
 
 
-def collate_fn(batch):
-    print(batch)
-    exit()
-    return None, None
-
-    #return torch.stack(images), torch.stack(masks)
-
 class LIDC_crops(torch.utils.data.Dataset):
     def __init__(self, base_transform, image_transform, mode='train', data_path='LIDC_crops/LIDC_DLCV_version/', label_version=[0, 1, 2, 3]):
         'Initialization'
@@ -35,13 +28,6 @@ class LIDC_crops(torch.utils.data.Dataset):
         split_path = image_path.split('/')
         split_path[3] = 'lesions'
         image = Image.open(image_path)
-
-        if isinstance(self.label_version, int):
-            label_path = os.path.join(*split_path)[:-4] + "_l" + str(self.label_version) + ".png"
-            label = Image.open(label_path)
-            X, Y = self.base_transform([image, label])
-            X = self.image_transform(X)
-            return X, Y
         
         label_paths = [
             os.path.join(*split_path)[:-4] + "_l" + str(version) + ".png"
@@ -51,4 +37,4 @@ class LIDC_crops(torch.utils.data.Dataset):
         X, *YS = self.base_transform([image, *labels])
         X = self.image_transform(X)
 
-        return X, torch.stack(YS)
+        return (X, *YS)

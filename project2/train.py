@@ -32,11 +32,11 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
         FN_train = 0 
         FP_train = 0
         model.train()
-        for data, targets in tqdm(train_loader):
+        for data, *targets in tqdm(train_loader):
             data = data.to(device)
-            for target in targets.permute(1, 0, 2, 3, 4):
+            for target in targets:
                 optimizer.zero_grad()
-                target =  target.to(device)
+                target = target.to(device)
             
                 output, logits = model(data)
                 output = torch.where(output > 0.5, 1, 0)
@@ -63,20 +63,21 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
         FP_val = 0 
         TN_val = 0 
         FN_val = 0
-        for data, target in validation_loader:
-            data, target = data.to(device), target.to(device)
-            output, logits = model(data)
-            
-            loss = criterion(logits, target).cpu().item()
-            
-            val_loss_epoch.append(loss)
-                        
-            output = torch.where(output > 0.5, 1, 0)
-            
-            TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
-            TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
-            FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
-            FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
+        for data, *targets in validation_loader:
+            for target in targets:
+                data, target = data.to(device), target.to(device)
+                output, logits = model(data)
+                
+                loss = criterion(logits, target).cpu().item()
+                
+                val_loss_epoch.append(loss)
+                            
+                output = torch.where(output > 0.5, 1, 0)
+                
+                TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
+                TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
+                FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
+                FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
             
         accuracy_val, dice_val, specificity_val, sensistivity_val, iou_val = measures(TP_val, TN_val, FP_val, FN_val)
 
@@ -107,12 +108,12 @@ def train(model, optimizer, train_set, validation_set, test_set, config, num_wor
     
     img_path = plotimages(validation_loader, model, 'lungs_validation.png')
     wandb.save(img_path)
-    run_test(model, test_loader=test_loader, criterion=criterion, config=config)
 
     # Save model
     weights_path = os.path.join(wandb.run.dir,wandb.run.name + ".pth")
     torch.save(model.state_dict(),weights_path)
     wandb.save(weights_path)
     print(f'Path to model is: {weights_path}')
+    run_test(model, test_loader=test_loader, criterion=criterion, config=config)
     
     return train_acc, validation_acc, train_loss, validation_loss

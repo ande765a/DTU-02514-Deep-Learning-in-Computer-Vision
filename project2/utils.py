@@ -43,17 +43,17 @@ def focal_loss(y_real, y_pred):
 
 ## PLOT IMAGES ##
 def plotimages(dataloader, model, figName, figPath='figs/'):
-    images, labels = next(iter(dataloader))
+    images, *labels = next(iter(dataloader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     output, _ = model(images.to(device))
     height, width = 6, 3
 
-    fig, ax = plt.subplots(height, width, figsize=(10, 60))
+    fig, ax = plt.subplots(height, width, figsize=(10, 30))
     for i in range(0, height):
         ax[i, 0].imshow(images[i].numpy()[0], "gray")
         ax[i, 0].axis("off")
 
-        ax[i, 1].imshow(labels[i].numpy()[0], "gray")
+        ax[i, 1].imshow(labels[0][i].numpy()[0], "gray")
         ax[i, 1].axis("off")
 
         ax[i, 2].imshow(output[i].detach().cpu().numpy()[0], "gray")
@@ -86,21 +86,21 @@ def run_test(model, test_loader, criterion, config):
     test_loss = []
     
     model.eval()
-    for data, target in test_loader:
-        num_classes = target.shape[3]
-        data, target = data.to(device), target.to(device)
-        output, logits = model(data)#.view(data.shape[0], -1)
-        
-        loss = criterion(logits, target).cpu().item()
-        
-        test_loss.append(loss)
-                    
-        output = torch.where(output > 0.5, 1, 0)
-        
-        TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
-        TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
-        FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
-        FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
+    for data, *targets in test_loader:
+        for target in targets:
+            data, target = data.to(device), target.to(device)
+            output, logits = model(data)
+            
+            loss = criterion(logits, target).cpu().item()
+            
+            test_loss.append(loss)
+                        
+            output = torch.where(output > 0.5, 1, 0)
+            
+            TP_val += torch.sum(torch.where((target == 1) & (output == 1), 1, 0))
+            TN_val += torch.sum(torch.where((target == 0) & (output == 0), 1, 0))
+            FP_val += torch.sum(torch.where((target == 0) & (output == 1), 1, 0))
+            FN_val += torch.sum(torch.where((target == 1) & (output == 0), 1, 0))
 
     accuracy_test, dice_test, specificity_test, sensistivity_test, iou_test = measures(TP_val, TN_val, FP_val, FN_val)
 
@@ -137,34 +137,41 @@ class WeightedFocalLoss(torch.nn.Module):
 
 
 def iou(mask1, mask2):
-    intersection = torch.sum(mask1 & mask2, dim=-1)
-    union = torch.sum(mask1 | mask2, dim=-1)
-    return intersection.true_divide(union)
+    intersection = torch.sum(mask1 & mask2, dim=list(range(1, len(mask1.shape))))
+    union = torch.sum(mask1 | mask2, dim=list(range(1, len(mask1.shape))))
+    return intersection.true_divide(union + 1e-8)
 
 def distance(y, y_hat):
     return 1 - iou(y, y_hat)
 
 def generalized_energy_distance(models, test_loader):
-    term1_distances = []
-    for image, annotations in test_loader:
-        model = np.random.choice(models)
-        y = np.random.choice(annotations)
-        y_hat = model(image)
-        d = distance(y, y_hat)
-        term1_distances.append(d)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    with torch.no_grad():
+        term1_distances = []
+        for image, *annotations in test_loader:
+            model = np.random.choice(models)
+            y = np.random.choice(annotations)
+            y_hat, _ = model(image.to(device))            
+            y_hat = y_hat > 0.5
+            d = distance((y==1).to(device), y_hat)
+            term1_distances.append(d)
+        print('Done with first term')
+        term2_distances = []
+        for image, *annotations in test_loader:
+            model = np.random.choice(models)
+            y, y_prime = np.random.choice(annotations, replace=True, size=2)
+            d = distance(y==1, y_prime==1)
+            term2_distances.append(d)
+        print('Done with second term')
 
-    term2_distances = []
-    for image, annotations in test_loader:
-        model = np.random.choice(models)
-        y, y_prime = np.random.choice(annotations, replace=True, size=2)
-        d = distance(y, y_prime)
-        term2_distances.append(d)
+        term3_distances = []
+        for image, *annotations in test_loader:
+            model, model_prime = np.random.choice(models, replace=True, size=2)
+            (y_hat, _), (y_hat_prime, _) = model(image.to(device)), model_prime(image.to(device))
+            y_hat = y_hat > 0.5
+            y_hat_prime = y_hat_prime > 0.5
+            d = distance(y_hat, y_hat_prime)
+            term3_distances.append(d)
+        print('Done with third term')
 
-    term3_distances = []
-    for image, annotations in test_loader:
-        model, model_prime = np.random.choice(models, replace=True, size=2)
-        y_hat, y_hat_prime = model(image), model_prime(image)
-        d = distance(y_hat, y_hat_prime)
-        term3_distances.append(d)
-
-    return 2 * torch.cat(term1_distances).mean() - torch.cat(term2_distances).mean() - torch.cat(term3_distances).mean()
+        return 2 * torch.cat(term1_distances).mean() - torch.cat(term2_distances).mean() - torch.cat(term3_distances).mean()
