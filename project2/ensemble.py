@@ -16,10 +16,12 @@ from utils import WeightedFocalLoss
 from train import train
 from models import BaselineUNet
 from dataloader import LIDC_crops
+from transforms import MultiHorizontalFlip, MultiRandomRotation, MultiRandomCrop, MultiToTensor, MultiNormalize
+
 
 from utils import generalized_energy_distance
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
     
@@ -76,49 +78,67 @@ def main():
             except Exception as e:
                 print(f"Invalid file {e}")
 
-    if len(args.paths) > 0:
+    if args.paths:
         print('sampling image')
 
-        Model = model_options[args.model]
-        img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
-        label_transform = transforms.ToTensor()
-        test_set = LIDC_crops(img_transform, label_transform, mode='test')
+        # Model = model_options[args.model]
         
-        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=8)
+        # test_transform = transforms.Compose([MultiToTensor()])
+        # image_transform = transforms.Compose([
+        #     transforms.Normalize((0.4058,), (0.1222,))
+        # ])
 
-        models = []
+        # label_version = [0, 1, 2, 3]
+
+        # test_set = LIDC_crops(test_transform, image_transform, mode = 'test', label_version = label_version)
+
+        # test_loader = DataLoader(test_set, batch_size = batch_size, shuffle = True, num_workers = 8)
+
+        # models = []
         # paths = args.paths[0].split(',')
-        for path in args.paths:
-            model = Model(1, 128, 128)
-            model.load_state_dict(torch.load(path, map_location=device))
-            models.append(model)
+        # for path in paths:
+        #     model = Model(1, 128, 128)
+        #     model.load_state_dict(torch.load(path, map_location=device))
+        #     models.append(model)
 
-        ged = generalized_energy_distance(models, test_loader)
-        print(f"Generalized Energy Distance for ensamble model: {ged}")
+        # ged = generalized_energy_distance(models, test_loader)
+        # print(f"Generalized Energy Distance for ensamble model: {ged}")
 
-        #sample_image(model_options[args.model], args.paths, args.id)
+        sample_image(model_options[args.model], args.paths[0].split(','), args.id)
     else:    
-        models = ensemble(ensemble_id, 4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model])
+        models = ensemble(ensemble_id, 4, lr, batch_size, epochs, optimizer_options[args.optimizer], loss_options[args.loss], model_options[args.model], augmentation=args.augmentation)
         weigth_paths = ",".join([*models.keys()])
         print(f'String path for ensemble models:\n{weigth_paths}\n')
 
 
 
 
-def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, num_workers=8):
+def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, loss_func, Net, num_workers=8, augmentation=0):
     models = {}
     for label_version in range(label_versions):
-        img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
-        label_transform = transforms.ToTensor()
+        base_transform = [MultiToTensor()]
 
-        train_set = LIDC_crops(img_transform, label_transform, label_version=[label_version])
-        validation_set = LIDC_crops(img_transform, label_transform, mode='val', label_version=[label_version])
-        test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=[label_version])
+        if augmentation == 1: 
+            base_transform += [
+                MultiRandomCrop((128, 128)),
+                MultiHorizontalFlip(), 
+                MultiRandomRotation(20)
+            ]
+        
+        
+        base_transform = transforms.Compose(base_transform)
+        test_transform = transforms.Compose([MultiToTensor()])
+        image_transform = transforms.Compose([
+            transforms.Normalize((0.4058,), (0.1222,))
+        ])
+
+        train_set = LIDC_crops(base_transform, image_transform, label_version = [label_version])
+        validation_set = LIDC_crops(test_transform, image_transform, mode = 'val', label_version = [label_version])
+        test_set = LIDC_crops(test_transform, image_transform, mode = 'test', label_version = [label_version])
+
+        train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True, num_workers = 8)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers = 8)
-
         #WANDB
         #1. Start a new run
         run = wandb.init(reinit=True, notes=f'r{label_version}', tags=[ensemble_id], 
@@ -131,7 +151,7 @@ def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, los
         config.epochs = epochs
         config.optimizer = optimizer
         config.loss_func = loss_func
-        config.transforms = img_transform
+        config.transforms = image_transform
 
 
         input_shape = next(iter(train_loader))[0][0].shape
@@ -168,49 +188,51 @@ def ensemble(ensemble_id, label_versions, lr, batch_size, epochs, optimizer, los
 def sample_image(Net, model_paths, ensemble_id):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4058,), (0.1222,))])
-    label_transform = transforms.ToTensor()
+    test_transform = MultiToTensor()
+    image_transform = transforms.Normalize((0.4058,), (0.1222,))
 
-    test_set = LIDC_crops(img_transform, label_transform, mode='test', label_version=[0])
+    test_set = LIDC_crops(test_transform, image_transform, mode='test', label_version=[0])
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers = 8)
 
-    image, _ = next(iter(test_loader))
-    input_shape = image[0].shape
-
-    model = Net(*input_shape)
-    pred = torch.zeros(len(model_paths), image.shape[2], image.shape[3])
-    for i, path in enumerate(model_paths):
-        model.load_state_dict(torch.load(path))
-
-        # model.to(device)
-        model.eval()
-        pred[i,:,:] = model(image)[0][0]
-
-
-    fig, ax = plt.subplots(2,3, figsize=(9, 6))
-    
-    ax[0,0].imshow(image[0].numpy()[0], cmap="gray")
-    ax[0,0].set_title('Input image')
-    ax[0,0].axis("off")
-    k = 0
-    for i in range(2):
-        for j in range(2):
-            ax[j,i+1].imshow(pred[k].detach().cpu().numpy(), cmap="gray")
-            ax[j,i+1].set_title(f"Model {k+1}")
-            ax[j,i+1].axis("off")
-            k += 1
-
-    ax[1,0].imshow(pred.mean(dim=0).detach().cpu().numpy())
-    ax[1,0].set_title(f"Mean of all predictions")
-    ax[1,0].axis("off")
-
-    fig.tight_layout()
-    path = os.path.join('figs/', ensemble_id + '.png')
-    fig.savefig(path)
-    
     wandb.init(notes=f'', tags=[ensemble_id, 'ensemble_sample'], project='lungs', entity='dlincv')
+    for ii in range(4):
+        print(f'iter {ii}')
+        image, _ = next(iter(test_loader))
+        input_shape = image[0].shape
 
-    wandb.save(path)
+        model = Net(*input_shape)
+        pred = torch.zeros(len(model_paths), image.shape[2], image.shape[3])
+        for i, path in enumerate(model_paths):
+            model.load_state_dict(torch.load(path))
+
+            # model.to(device)
+            model.eval()
+            pred[i,:,:] = model(image)[0][0]
+
+
+        fig, ax = plt.subplots(2,3, figsize=(9, 6))
+        
+        ax[0,0].imshow(image[0].numpy()[0], cmap="gray")
+        ax[0,0].set_title('Input image')
+        ax[0,0].axis("off")
+        k = 0
+        for i in range(2):
+            for j in range(2):
+                ax[j,i+1].imshow(pred[k].detach().cpu().numpy(), cmap="gray")
+                ax[j,i+1].set_title(f"Model {k+1}")
+                ax[j,i+1].axis("off")
+                k += 1
+
+        ax[1,0].imshow(pred.mean(dim=0).detach().cpu().numpy())
+        ax[1,0].set_title(f"Mean of all predictions")
+        ax[1,0].axis("off")
+
+        fig.tight_layout()
+        path = os.path.join('figs/', ensemble_id + str(ii) + '.png')
+        fig.savefig(path)
+        
+
+        wandb.save(path)
 
 
 
