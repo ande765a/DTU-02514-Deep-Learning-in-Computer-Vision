@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from train import train
 from models import Generator, Discriminator
 from dataloader import horse2zebra
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
 
@@ -61,7 +61,7 @@ def main():
     if not os.path.exists(f'./horse2zebra'):
             url = 'https://drive.google.com/uc?id=1DThH7JGgAXrnMHqjFO5emgDdiNxvFCjA'
             
-            gdown.download(url, './horse2zebra.zip', quiet=False)
+            gdown.download(url, './horse2zebrna.zip', quiet=False)
             try:
                 with zipfile.ZipFile('./horse2zebra.zip') as z:
                     z.extractall(".")
@@ -71,8 +71,8 @@ def main():
 
 
     size = 128
-    base_transform = [] #[transforms.Resize((size, size))]
-    test_transform = [] #[transforms.Resize((size, size))]
+    base_transform = [transforms.Resize((size, size))]
+    test_transform = [transforms.Resize((size, size))]
     
     if args.augmentation == 1:
         base_transform.append(transforms.RandomRotation(5))
