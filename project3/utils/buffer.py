@@ -5,7 +5,6 @@ class imgBuffer:
     def __init__(self, max_size=50):
         self.max_size = max_size
         self.data = []
-        self.uniform = torch.distributions.uniform.Uniform(0,1)
 
     def add_and_sample(self, data):
         to_return = []

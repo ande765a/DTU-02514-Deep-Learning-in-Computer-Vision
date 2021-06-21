@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, dataloader
 from utils import sample_images, imgBuffer
 
-def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_epochs=10, batch_size=64, loss_funcs={"GAN":nn.BCELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss}):
+def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_epochs=10, batch_size=64, loss_funcs={"GAN":nn.MSELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss}):
     wandb.init(project='horse2zebra', entity='dlincv')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -15,7 +15,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     B_hat_buffer = imgBuffer()
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test_set, batch_size=15, shuffle=False, num_workers=num_workers)
 
     GANLoss = loss_funcs["GAN"]()
     cycleLoss = loss_funcs["Cycle"]()
@@ -30,13 +30,13 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     img_shape = next(iter(train_loader))[0][0].shape
 
     # Setup Generator for A to B and discriminator for B
-    G_a2b = model_G().to(device)
+    G_a2b = model_G(blocks=9).to(device)
     D_b = model_D(tuple(img_shape)).to(device)
     wandb.watch(G_a2b)
     wandb.watch(D_b)
 
     # Setup Generator for B to A and discriminator for A
-    G_b2a = model_G().to(device)
+    G_b2a = model_G(blocks=9).to(device)
     D_a = model_D(tuple(img_shape)).to(device)
     wandb.watch(D_a)
     wandb.watch(G_b2a)
@@ -48,7 +48,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     g_params = list(G_a2b.parameters()) + list(G_b2a.parameters())
     
     d_opt = optimizer(d_params, 0.0002, (0.5, 0.999))
-    g_opt = optimizer(g_params, 0.0002, (0.5, 0.999))
+    g_opt = optimizer(g_params, 0.0001, (0.5, 0.999))
 
 
     for epoch in tqdm(range(num_epochs), unit='epoch'):
@@ -79,34 +79,10 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             A_hat = G_b2a(B)
             B_hat = G_a2b(A)
 
-            A_hat_pred = D_a(A_hat.detach())
             A_pred = D_a(A)
-            B_hat_pred = D_b(B_hat.detach())
             B_pred = D_b(B)
             
-
-            # Generator loss
-            loss_a2b_generator = GANLoss(B_hat_pred, real_tensor)
-            loss_b2a_generator = GANLoss(A_hat_pred, real_tensor)
-            
-            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), B)
-            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), A)
-           
-            # Identity loss            
-            loss_identity_A = identityLoss(G_b2a(A), A)
-            loss_identity_B = identityLoss(G_a2b(B), B)
-
-            # Combining generator losses
-            loss_cycle = lambda_cycle*(loss_cycle_consistency_A + loss_cycle_consistency_B)
-            loss_identity = lambda_identity*(loss_identity_A + loss_identity_B)
-            loss_GAN = loss_a2b_generator + loss_b2a_generator
-
-            loss_g = loss_GAN + loss_cycle + loss_identity
-                  
-            loss_g.backward()
-            g_opt.step()
-
-            # Discriminator losses
+            ###### Discriminator losses
             loss_a_real_discriminator = GANLoss(A_pred, real_tensor)
             loss_b_real_discriminator = GANLoss(B_pred, real_tensor)
 
@@ -120,10 +96,32 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             loss_d_a = loss_a_real_discriminator + loss_a_fake_discriminator 
             loss_d_b = loss_b_real_discriminator + loss_b_fake_discriminator
             
-
-            loss_d = loss_d_a + loss_d_b
+            loss_d = (loss_d_a + loss_d_b)/2
             loss_d.backward()
             d_opt.step()
+
+            ###### Generator loss
+            A_hat_pred = D_a(A_hat)
+            B_hat_pred = D_b(B_hat)
+            loss_a2b_generator = GANLoss(B_hat_pred, real_tensor)
+            loss_b2a_generator = GANLoss(A_hat_pred, real_tensor)
+            
+            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), B)
+            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), A)
+        
+            # Identity loss            
+            loss_identity_A = identityLoss(G_b2a(A), A)
+            loss_identity_B = identityLoss(G_a2b(B), B)
+
+            # Combining generator losses
+            loss_cycle = lambda_cycle * (loss_cycle_consistency_A + loss_cycle_consistency_B)
+            loss_identity = lambda_identity * (loss_identity_A + loss_identity_B)
+            loss_GAN = loss_a2b_generator + loss_b2a_generator
+
+            loss_g = loss_GAN + loss_cycle + loss_identity
+                
+            loss_g.backward()
+            g_opt.step()
 
             loss_GAN_total_epoch.append(loss_g.item())
             loss_GAN_epoch.append(loss_GAN.item())

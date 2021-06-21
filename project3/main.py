@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from train import train
 from models import Generator, Discriminator
 from dataloader import horse2zebra
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 def main():
 
@@ -56,8 +56,7 @@ def main():
         print("The code will run on GPU.")
     else:
         print("The code will run on CPU.")
-        
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     
     if not os.path.exists(f'./horse2zebra'):
             url = 'https://drive.google.com/uc?id=1DThH7JGgAXrnMHqjFO5emgDdiNxvFCjA'
