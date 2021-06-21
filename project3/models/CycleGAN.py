@@ -40,9 +40,8 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         channels, height, width = input_shape
-
         self.output_shape = (1, height // 2 ** 4, width // 2 ** 4)
-
+        #print(self.output_shape)
         def discriminator_block(in_channels, out, stride=2, normalization=True):
             layers = [nn.Conv2d(in_channels, out, kernel_size=4, stride=stride, padding=1)]
             if normalization:
@@ -54,7 +53,8 @@ class Discriminator(nn.Module):
                                                         normalization=False),
                                    *discriminator_block(64, 128),
                                    *discriminator_block(128, 256),
-                                   *discriminator_block(256, 512,stride=1),
+                                   *discriminator_block(256, 512,stride=2),
+                                   nn.ZeroPad2d((1, 0, 1, 0)),
                                    nn.Conv2d(512, 1, kernel_size=4, padding=1, bias=False)
                                    )
 

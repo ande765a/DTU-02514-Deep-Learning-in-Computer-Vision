@@ -28,11 +28,12 @@ class horse2zebra(torch.utils.data.Dataset):
         
         horse = Image.open(horse_path).convert('RGB')
         zebra = Image.open(zebra_path).convert('RGB')
-        horse = 2 * (horse / np.max(horse)) - 1
-        zebra = 2 * (zebra / np.max(zebra)) - 1
-        
-        H = self.transform(horse)
-        Z = self.transform(zebra)
+
+        horse = self.transform(horse)
+        zebra = self.transform(zebra)
+
+        horse = 2 * (horse / torch.max(horse)) - 1
+        zebra = 2 * (zebra / torch.max(zebra)) - 1
        
-        return H, Z
+        return horse, zebra
 

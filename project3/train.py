@@ -27,15 +27,17 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     config.optimizer = optimizer
     config.loss_func = loss_funcs["GAN"]
 
+    img_shape = next(iter(train_loader))[0][0].shape
+
     # Setup Generator for A to B and discriminator for B
     G_a2b = model_G().to(device)
-    D_b = model_D((3,256,256)).to(device)
+    D_b = model_D(tuple(img_shape)).to(device)
     wandb.watch(G_a2b)
     wandb.watch(D_b)
 
     # Setup Generator for B to A and discriminator for A
     G_b2a = model_G().to(device)
-    D_a = model_D((3,256,256)).to(device)
+    D_a = model_D(tuple(img_shape)).to(device)
     wandb.watch(D_a)
     wandb.watch(G_b2a)
 
@@ -46,7 +48,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     g_params = list(G_a2b.parameters()) + list(G_b2a.parameters())
     
     d_opt = optimizer(d_params, 0.0002, (0.5, 0.999))
-    g_opt = optimizer(g_params, 0.0001, (0.5, 0.999))
+    g_opt = optimizer(g_params, 0.0002, (0.5, 0.999))
 
 
     for epoch in tqdm(range(num_epochs), unit='epoch'):
@@ -68,10 +70,12 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
         for A, B in tqdm(train_loader):
             A = A.to(device)
             B = B.to(device)
-            real_tensor = torch.ones((A.shape[0], A.module.output_shape))
-            fake_tensor = torch.zeros((A.shape[0], A.module.output_shape))
+            real_tensor = torch.ones((A.shape[0], *D_a.output_shape)).to(device)
+            fake_tensor = torch.zeros((A.shape[0], *D_a.output_shape)).to(device)
             
-            optimizer.zero_grad()
+            d_opt.zero_grad()
+            g_opt.zero_grad()
+
             A_hat = G_b2a(B)
             B_hat = G_a2b(A)
 
@@ -85,14 +89,14 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             loss_a2b_generator = GANLoss(B_hat_pred, real_tensor)
             loss_b2a_generator = GANLoss(A_hat_pred, real_tensor)
             
-            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), A)
-            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), B)
+            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), B)
+            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), A)
            
             # Identity loss            
             loss_identity_A = identityLoss(G_b2a(A), A)
             loss_identity_B = identityLoss(G_a2b(B), B)
 
-            #Combining generator losses
+            # Combining generator losses
             loss_cycle = lambda_cycle*(loss_cycle_consistency_A + loss_cycle_consistency_B)
             loss_identity = lambda_identity*(loss_identity_A + loss_identity_B)
             loss_GAN = loss_a2b_generator + loss_b2a_generator
@@ -128,7 +132,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             
             # loss_d_a_epoch.append(loss_d_a)
             # loss_d_b_epoch.append(loss_d_b)
-            loss_d_epoch.append(loss_d)
+            loss_d_epoch.append(loss_d.item())
 
         # Validation loop
         test_loss_epoch = []
@@ -144,8 +148,8 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
         for A, B in tqdm(test_loader):
             A = A.to(device)
             B = B.to(device)
-            real_tensor = torch.ones((A.shape[0], A.module.output_shape))
-            fake_tensor = torch.zeros((A.shape[0], A.module.output_shape))
+            real_tensor = torch.ones((A.shape[0], *D_a.output_shape)).to(device)
+            fake_tensor = torch.zeros((A.shape[0], *D_a.output_shape)).to(device)
             A_hat = G_b2a(B)
             B_hat = G_a2b(A)
 
@@ -192,33 +196,32 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             test_loss_GAN_total_epoch.append(loss_g.item())
             test_loss_D_epoch.append(loss_d.item())
 
-        loss_GAN_total_mean = torch.mean(loss_GAN_total_epoch)
-        loss_GAN_mean = torch.mean(loss_GAN_epoch)
-        loss_cycle_mean = torch.mean(loss_cycle_epoch)
-        loss_identity_mean = torch.mean(loss_identity_epoch)
+        loss_generator_total_mean = np.mean(loss_GAN_total_epoch)
+        loss_generator_mean = np.mean(loss_GAN_epoch)
+        loss_cycle_mean = np.mean(loss_cycle_epoch)
+        loss_identity_mean = np.mean(loss_identity_epoch)
         # loss_D_A_mean = torch.mean(loss_d_a_epoch)
         # loss_D_B_mean = torch.mean(loss_d_b_epoch)
-        loss_D_mean = torch.mean(loss_d_epoch)
+        loss_D_mean = np.mean(loss_d_epoch)
 
-        test_loss_GAN_total_mean = torch.mean(test_loss_GAN_total_epoch)
-        test_loss_D_mean = torch.mean(test_loss_D_epoch)
-        print(f"Train loss GAN: {loss_GAN_total_mean:.3f}\t Test loss GAN: {test_loss_GAN_total_mean:.3f}\t",
-              f"Train loss discriminator: {loss_D_mean:.3f}%\t Test loss discriminator: {test_loss_D_mean :.3f}%")
+        test_loss_generator_total_mean = np.mean(test_loss_GAN_total_epoch)
+        test_loss_D_mean = np.mean(test_loss_D_epoch)
+        print(f"Train loss GAN: {loss_generator_total_mean:.3f}\t Test loss GAN: {test_loss_generator_total_mean:.3f}\t",
+              f"Train loss discriminator: {loss_D_mean:.3f}\t Test loss discriminator: {test_loss_D_mean :.3f}")
         
         wandb.log({ 
-            "loss_GAN_total": loss_GAN_total_mean,
-            "loss_GAN": loss_GAN_mean,
+            "loss_Generator_total": loss_generator_total_mean,
+            "loss_Generator": loss_generator_mean,
             "loss_cycle": loss_cycle_mean,
             "loss_identity": loss_identity_mean,
-            "loss_D": loss_D_mean,
-            "test_loss_GAN": loss_GAN_total_mean,
-            "test_loss_d": test_loss_D_mean
+            "loss_Discriminator": loss_D_mean,
+            "test_loss_Generator_total": test_loss_generator_total_mean,
+            "test_loss_Discriminator": test_loss_D_mean
         })
 
 
-        if epoch + 4 % 1 == 0:
-            img_path = sample_images(test_loader, G_a2b, G_b2a, epoch)
-            wandb.save(img_path)
+        img_path = sample_images(test_loader, G_a2b, G_b2a, epoch)
+        wandb.save(img_path)
     
 
     # Save models

@@ -12,7 +12,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 # from utils import WeightedFocalLoss
 from train import train
-from models import Generator, Discriminator 
+from models import Generator, Discriminator
 from dataloader import horse2zebra
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -28,7 +28,8 @@ def main():
     }
 
     loss_options = {
-        "BCELoss": {"GAN":nn.BCELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss},
+        "MSELoss": {"GAN":nn.MSELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss},
+        "BCELoss" : {"GAN":nn.BCELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss}
         # "Focal": WeightedFocalLoss
     }
 
@@ -37,18 +38,18 @@ def main():
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="Adam")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=15)
-    parser.add_argument("--batch-size", help="Batch size", type=int, default=32)
-    #parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
+    parser.add_argument("--batch-size", help="Batch size", type=int, default=4)
+    parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
-    parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCELoss")
+    parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="MSELoss")
 
     args = parser.parse_args()
 
     lr = args.lr
     epochs = args.epochs
     batch_size = args.batch_size
-    # augmentation = args.augmentation
+    augmentation = args.augmentation
 
 
     if torch.cuda.is_available():
@@ -71,9 +72,16 @@ def main():
 
 
     size = 128
-    base_transform = [transforms.Resize((size, size)), transforms.ToTensor()]
-    test_transform = [transforms.Resize((size, size)), transforms.ToTensor()]
-
+    base_transform = [transforms.Resize((size, size))]
+    test_transform = [transforms.Resize((size, size))]
+    
+    if args.augmentation == 1:
+        base_transform.append(transforms.RandomRotation(5))
+        base_transform.append(transforms.RandomHorizontalFlip())
+        base_transform.append(transforms.ColorJitter(0.1, 0.1, 0.1, 0.1))
+    
+    base_transform.append(transforms.ToTensor())
+    test_transform.append(transforms.ToTensor())
     
     base_transform = transforms.Compose(base_transform)
     test_transform = transforms.Compose(test_transform)
@@ -94,7 +102,7 @@ def main():
         , num_workers=args.workers
         , num_epochs=epochs
         , batch_size=batch_size
-        , loss_funcs=loss_options["BCELoss"])
+        , loss_funcs=loss_options[args.loss])
 
 
 if __name__ == "__main__": 
