@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from train import train
 from models import Generator, Discriminator
 from dataloader import horse2zebra
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
 
@@ -71,8 +71,8 @@ def main():
 
 
     size = 128
-    base_transform = [transforms.Resize((size, size))]
-    test_transform = [transforms.Resize((size, size))]
+    base_transform = [] #[transforms.Resize((size, size))]
+    test_transform = [] #[transforms.Resize((size, size))]
     
     if args.augmentation == 1:
         base_transform.append(transforms.RandomRotation(5))
