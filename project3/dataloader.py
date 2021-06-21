@@ -6,15 +6,15 @@ import PIL.Image as Image
 
 
 class horse2zebra(torch.utils.data.Dataset):
-    def __init__(self, base_transform, train=True, data_path='horse2zebra/'):
+    def __init__(self, transform, train=True, data_path='horse2zebra/'):
         'Initialization'
         mode = 'train'
         if not train:
             mode = 'test'
-        self.base_transform = base_transform
+        self.transform = transform
         data_path = os.path.join(data_path, mode)
-        self.horse_paths = glob.glob(data_path + '/horse/*.png')
-        self.zebra_paths = glob.glob(data_path + '/zebra/*.png')
+        self.horse_paths = glob.glob(data_path + '/A/*.jpg')
+        self.zebra_paths = glob.glob(data_path + '/B/*.jpg')
 
     def __len__(self):
         'Returns the total number of samples'

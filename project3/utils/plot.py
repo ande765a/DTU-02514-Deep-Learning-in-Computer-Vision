@@ -3,7 +3,7 @@ import torch
 from torchvision.utils import save_image, make_grid
 
 def plotimages(test_loader, model, figname, figpath = 'figs/'):
-    horse_im, zebra_im = next(iter(dataloader))
+    horse_im, zebra_im = next(iter(test_loader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     output = model(horse_im.to(device))
@@ -16,7 +16,7 @@ def plotimages(test_loader, model, figname, figpath = 'figs/'):
 
     return figpath
 
-def sample_images(test_loader, G_A2B, G_B2A,, epoch, figpath = 'figs/'):
+def sample_images(test_loader, G_A2B, G_B2A, epoch, figpath = 'figs/'):
     """Saves a generated sample from the test set"""
     img_path = f"{figpath}images{epoch}.png"
     A, B = next(iter(test_loader))

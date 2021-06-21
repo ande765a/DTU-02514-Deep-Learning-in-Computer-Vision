@@ -28,7 +28,7 @@ def main():
     }
 
     loss_options = {
-        "LSGAN": {"GAN":nn.BCELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss},
+        "BCELoss": {"GAN":nn.BCELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss},
         # "Focal": WeightedFocalLoss
     }
 
@@ -37,18 +37,18 @@ def main():
     parser.add_argument("--optimizer", help="What kind of optimizer to use", type=str, choices=optimizer_options.keys(), default="Adam")
     parser.add_argument("--lr", help="Learning rate", type=float, default=1e-3)
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=15)
-    parser.add_argument("--batch-size", help="Batch size", type=int, default=128)
+    parser.add_argument("--batch-size", help="Batch size", type=int, default=32)
     #parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
-    parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="LSGAN")
+    parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="BCELoss")
 
     args = parser.parse_args()
 
     lr = args.lr
     epochs = args.epochs
     batch_size = args.batch_size
-    augmentation = args.augmentation
+    # augmentation = args.augmentation
 
 
     if torch.cuda.is_available():
@@ -73,12 +73,6 @@ def main():
     size = 128
     base_transform = [transforms.Resize((size, size)), transforms.ToTensor()]
     test_transform = [transforms.Resize((size, size)), transforms.ToTensor()]
-    # if augmentation == 1: 
-    #     base_transform += [
-    #         MultiRandomCrop((128, 128)),
-    #         MultiHorizontalFlip(), 
-    #         MultiRandomRotation(20)
-    #     ]
 
     
     base_transform = transforms.Compose(base_transform)
@@ -87,9 +81,21 @@ def main():
     train_set = horse2zebra(base_transform)
     test_set = horse2zebra(test_transform)
 
+    model_G = model_options[args.model]["Generator"]
+    model_D = model_options[args.model]["Discriminator"]
 
+    optimizer = optimizer_options[args.optimizer]
 
-    
+    train(model_G=model_G
+        , model_D=model_D
+        , optimizer=optimizer
+        , train_set=train_set
+        , test_set=test_set
+        , num_workers=args.workers
+        , num_epochs=epochs
+        , batch_size=batch_size
+        , loss_funcs=loss_options["BCELoss"])
+
 
 if __name__ == "__main__": 
     main()
