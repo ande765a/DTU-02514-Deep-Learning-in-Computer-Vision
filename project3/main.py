@@ -87,7 +87,7 @@ def main():
     test_transform = transforms.Compose(test_transform)
 
     train_set = horse2zebra(base_transform)
-    test_set = horse2zebra(test_transform)
+    test_set = horse2zebra(test_transform, train=False)
 
     model_G = model_options[args.model]["Generator"]
     model_D = model_options[args.model]["Discriminator"]
