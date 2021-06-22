@@ -4,6 +4,7 @@ import torch
 from torch.utils import data
 import torch.nn as nn
 from torchvision.utils import save_image, make_grid
+import wandb
 
 def sample_images(test_loader, G_A2B, G_B2A, epoch, figpath = 'figs/'):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -32,20 +33,22 @@ def sample_images(test_loader, G_A2B, G_B2A, epoch, figpath = 'figs/'):
 
 
 
-def one_img(test_loader, G_A2B, G_B2A, epoch, figpath = 'figs/'):
+def one_img(test_loader, G_A2B, G_B2A, epochs, figpath = 'figs/'):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    img_path = f"{figpath}one_image_{epoch}.png"
-    A, B = next(iter(test_loader))
-    original = A.to(device)
-    fake = G_A2B(original) #horse to zebra
-    recovered = G_B2A(fake) # fake zebra to horse
-    identity = G_A2B(original) #horse to horse
+    for i in range(epochs):
+        img_path = f"{figpath}one_image_{i}.png"
+        A, B = next(iter(test_loader))
+        original = A.to(device)
+        fake = G_A2B(original) #horse to zebra
+        recovered = G_B2A(fake) # fake zebra to horse
+        identity = G_A2B(original) #horse to horse
 
-    image_grid = torch.cat((original, fake, recovered, identity),2)
-    save_image(image_grid, img_path, normalize = False)
-    return
+        image_grid = torch.cat((original, fake, recovered, identity), 2)
+        save_image(image_grid, img_path, normalize = False)
+        wandb.save(img_path)
 
-def plot_histogram(dataloader, discriminator, generator, batch_size, animal = "horse",):
+
+def plot_histogram(dataloader, discriminator, generator, batch_size, figpath='figs/', animal="horse",):
     
     if animal =="horse":
         A, B = next(iter(dataloader)) ## Horse
@@ -89,3 +92,6 @@ def plot_histogram(dataloader, discriminator, generator, batch_size, animal = "h
     plt.legend()
     plt.set_xlabel('Probability of being real')
     plt.set_title('Discriminator loss: %.2f' % loss_d_a.item())
+    img_path = f"{figpath}histogram_from_{animal}.png"
+    plt.savefig(img_path=img_path)
+    return img_path
