@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from train import train
 from models import Generator, Discriminator
 from dataloader import horse2zebra
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
 
@@ -40,17 +40,15 @@ def main():
     parser.add_argument("--epochs", help="Number of epochs", type=int, default=15)
     parser.add_argument("--batch-size", help="Batch size", type=int, default=4)
     parser.add_argument("--augmentation", help="Augmentation on or off", type=int, default=0)
+    parser.add_argument("--resize", help="Resize images to 128", type=int, default=0)
     parser.add_argument("--workers", help="Number of workers for dataloading", type=int, default=8)
     parser.add_argument("--load", help="Path of trained model", type=str, default=None)
     parser.add_argument("--loss", help="Choose loss", type=str, choices=loss_options.keys(), default="MSELoss")
 
     args = parser.parse_args()
 
-    lr = args.lr
     epochs = args.epochs
     batch_size = args.batch_size
-    augmentation = args.augmentation
-
 
     if torch.cuda.is_available():
         print("The code will run on GPU.")
@@ -70,9 +68,12 @@ def main():
                 print(f"Invalid file {e}")
 
 
-    size = 128
-    base_transform = [transforms.Resize((size, size))]
-    test_transform = [transforms.Resize((size, size))]
+    base_transform = []
+    test_transform = []
+    if args.resize == 1:
+        size = 128
+        base_transform.append(transforms.Resize((size, size)))
+        test_transform.append(transforms.Resize((size, size)))
     
     if args.augmentation == 1:
         base_transform.append(transforms.RandomRotation(5))

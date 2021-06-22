@@ -4,8 +4,8 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, dataloader
-from utils import sample_images, imgBuffer
+from torch.utils.data import DataLoader, dataloader, Subset
+from utils import sample_images, imgBuffer, calculate_fids
 
 def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_epochs=10, batch_size=64, loss_funcs={"GAN":nn.MSELoss, "Cycle": nn.L1Loss, "Identity": nn.L1Loss}):
     wandb.init(project='horse2zebra', entity='dlincv')
@@ -15,7 +15,8 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     B_hat_buffer = imgBuffer()
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    test_loader = DataLoader(test_set, batch_size=15, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader_plot = DataLoader(test_set, batch_size=15, shuffle=False, num_workers=num_workers)
 
     GANLoss = loss_funcs["GAN"]()
     cycleLoss = loss_funcs["Cycle"]()
@@ -30,13 +31,13 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
     img_shape = next(iter(train_loader))[0][0].shape
 
     # Setup Generator for A to B and discriminator for B
-    G_a2b = model_G(blocks=9).to(device)
+    G_a2b = model_G(blocks=6).to(device)
     D_b = model_D(tuple(img_shape)).to(device)
     wandb.watch(G_a2b)
     wandb.watch(D_b)
 
     # Setup Generator for B to A and discriminator for A
-    G_b2a = model_G(blocks=9).to(device)
+    G_b2a = model_G(blocks=6).to(device)
     D_a = model_D(tuple(img_shape)).to(device)
     wandb.watch(D_a)
     wandb.watch(G_b2a)
@@ -133,8 +134,6 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             loss_d_epoch.append(loss_d.item())
 
         # Validation loop
-        test_loss_epoch = []
-
         G_a2b.eval()
         G_a2b.eval()
         D_a.eval()
@@ -143,6 +142,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
         test_loss_GAN_total_epoch = []
         test_loss_D_epoch = []
         # Test loop
+        fid_A, fid_B = calculate_fids(test_loader, G_a2b, G_b2a)
         for A, B in tqdm(test_loader):
             A = A.to(device)
             B = B.to(device)
@@ -161,8 +161,8 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
             loss_a2b_generator = GANLoss(B_hat_pred, real_tensor)
             loss_b2a_generator = GANLoss(A_hat_pred, real_tensor)
             
-            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), A)
-            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), B)
+            loss_cycle_consistency_A = cycleLoss(G_a2b(A_hat), B)
+            loss_cycle_consistency_B = cycleLoss(G_b2a(B_hat), A)
            
             # Identity loss            
             loss_identity_A = identityLoss(G_b2a(A), A)
@@ -204,10 +204,12 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
 
         test_loss_generator_total_mean = np.mean(test_loss_GAN_total_epoch)
         test_loss_D_mean = np.mean(test_loss_D_epoch)
-        print(f"Train loss GAN: {loss_generator_total_mean:.3f}\t Test loss GAN: {test_loss_generator_total_mean:.3f}\t",
+        print(f"Train loss GAN: {loss_generator_total_mean:.3f} Test loss GAN: {test_loss_generator_total_mean:.3f}\t",
               f"Train loss discriminator: {loss_D_mean:.3f}\t Test loss discriminator: {test_loss_D_mean :.3f}")
         
         wandb.log({ 
+            "fid_A": fid_A,
+            "fid_B": fid_B,
             "loss_Generator_total": loss_generator_total_mean,
             "loss_Generator": loss_generator_mean,
             "loss_cycle": loss_cycle_mean,
@@ -218,7 +220,7 @@ def train(model_G, model_D, optimizer, train_set, test_set, num_workers=8, num_e
         })
 
 
-        img_path = sample_images(test_loader, G_a2b, G_b2a, epoch)
+        img_path = sample_images(test_loader_plot, G_a2b, G_b2a, epoch)
         wandb.save(img_path)
     
 
